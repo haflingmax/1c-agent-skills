@@ -50,6 +50,8 @@
 
 **Файлы:**
 - Создать: `tests/test_check_1c_cli.py`
+- Создать: `tools/derive-glued.py`
+- Изменить: `skills/1c-build-and-db/scripts/cli-keys.json` (добавляется поле `glued`)
 - Изменить: `skills/1c-build-and-db/scripts/check-1c-cli.py`
 - Изменить: `.gitignore` (Д-23)
 
@@ -57,7 +59,8 @@
 - Использует: `check(line, catalog)` из `check-1c-cli.py`, возвращает
   `(problems: list[str], notes: list[str])`; `load_catalog()` без аргументов.
 - Даёт дальше: функция `known_key(name, keys)` — точное разрешение имени ключа,
-  возвращает `str | None`; используется задачей 2.
+  возвращает `str | None`. Внутри задачи; другие задачи её не вызывают.
+- Даёт дальше: поле `glued` в `cli-keys.json` — булево, у 12 ключей `true`.
 
 - [ ] **Шаг 1: Написать падающие тесты**
 
@@ -99,6 +102,13 @@ def test_d13_glued_value_key_still_works():
     """Слитные ключи со значением остаются законными: /L<код языка>."""
     assert problems("1cv8 DESIGNER /F d:/base /Lru /DumpCfg d:/x.cf "
                     "/DisableStartupDialogs /Out d:/l.log") == []
+
+
+def test_glued_flag_is_present_and_small():
+    """Признак glued проставлен и стоит ровно у 12 ключей."""
+    glued = [k for k, v in CATALOG["ключи"].items() if v.get("glued")]
+    assert len(glued) == 12, glued
+    assert "/L" in glued and "/DumpCfg" not in glued, glued
 
 
 def test_d14_env_var_is_allowed():
@@ -151,30 +161,93 @@ python -m pytest tests/test_check_1c_cli.py -v
 `test_d15_real_name_with_vash_is_allowed`, `test_d16_lowercase_key_is_allowed`,
 `test_d17_foreign_tool_is_not_judged`. Проходят два последних.
 
-- [ ] **Шаг 3: Заменить разрешение имени ключа**
+- [ ] **Шаг 3: Проставить в каталоге признак слитного значения**
 
-В `check-1c-cli.py` заменить блок слитных ключей на точную функцию. Слитным считается
-только ключ, у которого в каталоге аргумент начинается с `<`, то есть значение
-приклеивается по документации:
+Признак нельзя вывести из поля `arg`: разборщик сделал `strip()`, и различие между
+`/L<код языка>` и `/F <каталог>` потерялось. По полю `arg` слитными выглядят 60 ключей,
+включая `/DumpCfg`, — с таким правилом выдуманный `/DumpCfgToFile` снова прошёл бы.
+
+Признак выводится из строки синтаксиса в приложении 7: слитный ключ — тот, за именем
+которого сразу идёт `<`, без пробела. Проверено: таких **12**.
+
+Создать `tools/derive-glued.py`:
+
+```python
+"""Проставляет в cli-keys.json признак слитного значения.
+
+Слитный ключ записан в документации как /Имя<значение> — без пробела.
+Таких 12; у остальных значение отделяется пробелом либо его нет вовсе.
+Источник: _its/cmdline/its-pril7-full.json, приложение 7 руководства администратора.
+"""
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "_its" / "cmdline" / "its-pril7-full.json"
+DST = ROOT / "skills" / "1c-build-and-db" / "scripts" / "cli-keys.json"
+
+
+def glued_keys(text):
+    text = text.replace("\u2011", "-").replace("\u00a0", " ")
+    blocks, cur = [], []
+    for line in text.split("\n"):
+        if line.strip():
+            cur.append(line.strip())
+        elif cur:
+            blocks.append(" ".join(cur))
+            cur = []
+    if cur:
+        blocks.append(" ".join(cur))
+    found = set()
+    for b in blocks:
+        m = re.match(r"^(/[A-Za-z][A-Za-z0-9_]*)(.?)", b)
+        if m and m.group(2) == "<":
+            found.add(m.group(1))
+    return found
+
+
+def main():
+    glued = glued_keys(json.loads(SRC.read_text(encoding="utf-8"))["text"])
+    doc = json.loads(DST.read_text(encoding="utf-8"))
+    for k, v in doc["ключи"].items():
+        v["glued"] = k in glued
+    DST.write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("слитных ключей:", sum(1 for v in doc["ключи"].values() if v["glued"]))
+
+
+if __name__ == "__main__":
+    main()
+```
+
+Запустить:
+
+```
+python tools/derive-glued.py
+```
+
+Ожидается: `слитных ключей: 12`.
+
+- [ ] **Шаг 3а: Заменить разрешение имени ключа**
+
+В `check-1c-cli.py` заменить блок слитных ключей на:
 
 ```python
 def known_key(name, keys):
     """Возвращает каноническое имя ключа или None.
 
-    Регистр не важен: платформа регистронезависима, проверено запуском
-    (/dumpcfg отработал и создал файл). Слитное значение допускается только
-    у ключей, документированных как /Имя<значение> — например /L<код языка>.
-    Для остальных совпадение по началу имени запрещено: иначе выдуманный
-    /DumpCfgToFile молча засчитывается за /DumpCfg.
+    Регистр не важен: платформа регистронезависима, проверено запуском —
+    /dumpcfg отработал и создал файл. Значение допускается приклеенным только
+    у ключей с признаком glued (их 12, например /L<код языка>). Для остальных
+    совпадение по началу имени запрещено: иначе выдуманный /DumpCfgToFile
+    молча засчитывается за /DumpCfg.
     """
     low = name.lower()
     for k in keys:
         if k.lower() == low:
             return k
     for k, info in keys.items():
-        if len(k) <= 2 or not low.startswith(k.lower()):
-            continue
-        if (info.get("arg") or "").startswith("<"):
+        if info.get("glued") and len(low) > len(k) and low.startswith(k.lower()):
             return k
     return None
 ```
@@ -239,7 +312,7 @@ python -m pytest tests/test_check_1c_cli.py -v
 ```
 git rm -r --cached tools/__pycache__
 printf '__pycache__/\n*.pyc\n' >> .gitignore
-git add tests/test_check_1c_cli.py skills/1c-build-and-db/scripts/check-1c-cli.py .gitignore
+git add tests/test_check_1c_cli.py tools/derive-glued.py skills/1c-build-and-db/scripts/cli-keys.json skills/1c-build-and-db/scripts/check-1c-cli.py .gitignore
 git commit -m "Проверяльщик перестал блокировать законное и начал ловить выдуманное
 
 Пять дефектов, каждый подтверждён запуском до правки: выдуманный ключ
@@ -1060,6 +1133,11 @@ git commit -m "Приёмка в трёх средах на живой плат�
 в приёмку задачи 8. Единый вызов — `tools/run-prompt.ps1`, создаётся задачей 2 и
 используется задачами 3, 4, 7, 8.
 
-**Согласованность имён.** `known_key(name, keys)` определена в задаче 1 и
-используется в задаче 2. `check_file(path)` определена в задаче 6 и используется
+**Общий файл двух задач.** `skills/1c-build-and-db/SKILL.md` правится задачей 4
+(раздел «Что здесь необратимо») и задачей 6 (шаг 7 — простановка источников в том же
+разделе). Порядок обязателен: 4 раньше 6, иначе задача 6 проставляет источники
+в несуществующем тексте.
+
+**Согласованность имён.** `known_key(name, keys)` определена и используется внутри
+задачи 1. `check_file(path)` определена в задаче 6 и используется
 её же тестом. Каталог читается через `load_catalog()` без аргументов во всех задачах.
