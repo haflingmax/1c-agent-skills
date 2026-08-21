@@ -42,6 +42,16 @@ def test_glued_flag_is_present_and_small():
     assert "/L" in glued and "/DumpCfg" not in glued, glued
 
 
+def test_glued_prefix_collision_picks_longest_match():
+    """/O и /OIDA оба glued; /OIDAOff обязан разрешиться в /OIDA, а не в /O.
+
+    known_key перебирает keys.items() и обязан брать самое длинное совпадение,
+    а не первое попавшееся — иначе более короткий glued-ключ ложно перехватывает
+    значение более длинного.
+    """
+    assert mod.known_key("/OIDAOff", CATALOG["ключи"]) == "/OIDA"
+
+
 def test_d14_env_var_is_allowed():
     """Д-14: %TEMP% — законный переносимый путь."""
     assert problems("1cv8 DESIGNER /F d:/base /LoadCfg d:/n.cf "

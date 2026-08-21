@@ -62,15 +62,17 @@ def known_key(name, keys):
     у ключей с признаком glued (их 12, например /L<код языка>). Для остальных
     совпадение по началу имени запрещено: иначе выдуманный /DumpCfgToFile
     молча засчитывается за /DumpCfg.
+
+    Среди glued-ключей берётся самое длинное совпадение, а не первое: /O и
+    /OIDA оба glued, и /OIDAOff обязан разрешиться в /OIDA, а не в /O.
     """
     low = name.lower()
     for k in keys:
         if k.lower() == low:
             return k
-    for k, info in keys.items():
-        if info.get("glued") and len(low) > len(k) and low.startswith(k.lower()):
-            return k
-    return None
+    candidates = [k for k, info in keys.items()
+                  if info.get("glued") and len(low) > len(k) and low.startswith(k.lower())]
+    return max(candidates, key=len) if candidates else None
 
 
 def matches_option(arg, option):
