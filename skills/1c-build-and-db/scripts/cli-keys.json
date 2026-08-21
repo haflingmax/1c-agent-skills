@@ -1,0 +1,1177 @@
+{
+ "источник": "1С:Предприятие 8.3.27, руководство администратора, приложение 7. Состав ключей — фактический перечень; пояснения написаны нами.",
+ "режимы": [
+  "DESIGNER",
+  "ENTERPRISE",
+  "CREATEINFOBASE",
+  "общий",
+  "OLE",
+  "строка соединения",
+  "веб-клиент",
+  "мобильная версия"
+ ],
+ "шаблоны": [
+  "1cv8 CREATEINFOBASE <строка соединения> [/AddToList [<имя ИБ>]] [/UseTemplate <имя файла шаблона>] [/Out <имя файла>] [/L<код языка>] [/VL<код локализации>] [/O<скорость соединения>] [/DumpResult <имя файла>]",
+  "1cv8 DESIGNER /IBName \"My db\" /DumpIB c:\\temp\\dump.dt",
+  "1cv8 DESIGNER [<команды >]",
+  "1cv8 ENTERPRISE [<параметры запуска>]"
+ ],
+ "ключи": {
+  "/AccessToken": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/AddToList": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": null
+  },
+  "/AgentBaseDir": {
+   "arg": "<рабочий каталог>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.16"
+  },
+  "/AgentListenAddress": {
+   "arg": "<Адрес>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.16"
+  },
+  "/AgentMode": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.16"
+  },
+  "/AgentPort": {
+   "arg": "<Порт>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.16"
+  },
+  "/AgentSSHHostKey": {
+   "arg": "<приватный ключ>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.16"
+  },
+  "/AgentSSHHostKeyAuto": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.16"
+  },
+  "/AllowExecuteScheduledJobs": {
+   "arg": "-Off|-Force",
+   "mode": "общий",
+   "opts": [
+    "-Force",
+    "-Off"
+   ],
+   "section": "7.3.10"
+  },
+  "/AppArch": {
+   "arg": "<разрядность>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.3"
+  },
+  "/AppAutoCheckMode": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.3"
+  },
+  "/AppAutoCheckVersion": {
+   "arg": "<режим>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.3"
+  },
+  "/AppAutoInstallLastVersion": {
+   "arg": "<режим>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.10"
+  },
+  "/Authoff": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/C": {
+   "arg": "<строка текста>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.10"
+  },
+  "/CheckCanApplyConfigurationExtensions": {
+   "arg": "[-Extension <ИмяРасширения>] [-AllZones] [-Z «Значения разделителей»]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllZones",
+    "-Extension",
+    "-Z"
+   ],
+   "section": "7.4.5"
+  },
+  "/CheckConfig": {
+   "arg": "[-ConfigLogIntegrity] [-IncorrectReferences] [-ThinClient] [-WebClient",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllExtensions",
+    "-CheckUseModality",
+    "-CheckUseSynchronousCalls",
+    "-ConfigLogIntegrity",
+    "-DistributiveModules",
+    "-EmptyHandlers",
+    "-ExtendedModulesCheck",
+    "-Extension",
+    "-ExternalConnection",
+    "-ExternalConnectionServer",
+    "-HandlersExistence",
+    "-IncorrectReferences"
+   ],
+   "section": "7.4.5",
+   "gloss": "синтаксическая и логическая проверка конфигурации"
+  },
+  "/CheckModules": {
+   "arg": "[-ThinClient] [-WebClient] [-MobileClient] [-MobileClientStandalone] [",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllExtensions",
+    "-ExtendedModulesCheck",
+    "-Extension",
+    "-ExternalConnection",
+    "-MobileAppClient",
+    "-MobileAppServer",
+    "-MobileClient",
+    "-MobileClientStandalone",
+    "-Server",
+    "-ThickClientOrdinaryApplication",
+    "-ThinClient",
+    "-WebClient"
+   ],
+   "section": "7.4.5",
+   "gloss": "проверка модулей на встроенном языке"
+  },
+  "/ClearCache": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.10"
+  },
+  "/CompareCfg": {
+   "arg": "–FirstConfigurationType <тип конфигурации> [-FirstName <имя конфигурац",
+   "mode": "DESIGNER",
+   "opts": [
+    "-FirstFile",
+    "-FirstName",
+    "-FirstVersion",
+    "-IncludeAddedObjects",
+    "-IncludeChangedObjects",
+    "-IncludeDeletedObjects",
+    "-MappingRule",
+    "-Objects",
+    "-ReportFile",
+    "-ReportFormat",
+    "-ReportType",
+    "-SecondFile"
+   ],
+   "section": "7.4.4",
+   "gloss": "сравнить две конфигурации и выдать отчёт"
+  },
+  "/ConfigurationRepositoryAddUser": {
+   "arg": "-User <Имя> -Pwd <Пароль> -Rights <Права> [-RestoreDeletedUser] [-Exte",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-Pwd",
+    "-RestoreDeletedUser",
+    "-Rights",
+    "-User"
+   ],
+   "section": "7.4.15.3"
+  },
+  "/ConfigurationRepositoryBindCfg": {
+   "arg": "[-forceBindAlreadyBindedUser] [-forceReplaceCfg] [-Extension <Имя расш",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-forceBindAlreadyBindedUser",
+    "-forceReplaceCfg"
+   ],
+   "section": "7.4.15.5"
+  },
+  "/ConfigurationRepositoryClearCache": {
+   "arg": "[-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.15.7"
+  },
+  "/ConfigurationRepositoryClearGlobalCache": {
+   "arg": "[-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.15.7"
+  },
+  "/ConfigurationRepositoryClearLocalCache": {
+   "arg": "[-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.15.7"
+  },
+  "/ConfigurationRepositoryCommit": {
+   "arg": "[–Objects <имя файла>] [-comment <текст комментария>] [-keepLocked] [-",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-comment",
+    "-force",
+    "-keepLocked"
+   ],
+   "section": "7.4.15.4"
+  },
+  "/ConfigurationRepositoryCopyUsers": {
+   "arg": "-Path <путь> -User <Имя> -Pwd <Пароль> [-RestoreDeletedUser] [-Extensi",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-Path",
+    "-Pwd",
+    "-RestoreDeletedUser",
+    "-User"
+   ],
+   "section": "7.4.15.3"
+  },
+  "/ConfigurationRepositoryCreate": {
+   "arg": "[-AllowConfigurationChanges -ChangesAllowedRule <Правило поддержки> -C",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllowConfigurationChanges",
+    "-ChangesAllowedRule",
+    "-ChangesNotRecommendedRule",
+    "-CheckPasswordComplexity",
+    "-Extension",
+    "-MinPasswordLenght",
+    "-NoBind"
+   ],
+   "section": "7.4.15.2"
+  },
+  "/ConfigurationRepositoryDumpCfg": {
+   "arg": "<имя cf файла> [-v <номер версии хранилища>] [-Extension <Имя расширен",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-v"
+   ],
+   "section": "7.4.15.5"
+  },
+  "/ConfigurationRepositoryF": {
+   "arg": "<каталог хранилища>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.15.1"
+  },
+  "/ConfigurationRepositoryLock": {
+   "arg": "[–Objects <имя файла>] [-revised] [-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-revised"
+   ],
+   "section": "7.4.15.4"
+  },
+  "/ConfigurationRepositoryN": {
+   "arg": "<имя>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.15.1"
+  },
+  "/ConfigurationRepositoryOptimizeData": {
+   "arg": "[-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.15.6"
+  },
+  "/ConfigurationRepositoryP": {
+   "arg": "<пароль>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.15.1"
+  },
+  "/ConfigurationRepositoryReport": {
+   "arg": "<имя файла> [-NBegin <номер версии>] [-NEnd <номер версии>] [-DateBegi",
+   "mode": "DESIGNER",
+   "opts": [
+    "-ConfigurationVersion",
+    "-DateBegin",
+    "-DateEnd",
+    "-DoNotIncludeVersionsWithLabels",
+    "-Extension",
+    "-GroupByComment",
+    "-GroupByObject",
+    "-IncludeCommentLinesWithDoubleSlash",
+    "-IncludeOnlyVersionsWithLabels",
+    "-NBegin",
+    "-NEnd",
+    "-ReportFormat"
+   ],
+   "section": "7.4.15.6"
+  },
+  "/ConfigurationRepositorySetLabel": {
+   "arg": "[-v <номер версии хранилища>] [-name] <имя метки> [-comment <текст ком",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-comment",
+    "-name",
+    "-v"
+   ],
+   "section": "7.4.15.6"
+  },
+  "/ConfigurationRepositoryUnLock": {
+   "arg": "[–Objects <имя файла>] [-force] [-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-force"
+   ],
+   "section": "7.4.15.4"
+  },
+  "/ConfigurationRepositoryUnbindCfg": {
+   "arg": "[-force] [-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-force"
+   ],
+   "section": "7.4.15.5"
+  },
+  "/ConfigurationRepositoryUpdateCfg": {
+   "arg": "[-v <номер версии хранилища>] [-revised] [-force] [-Objects <имя файла",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension",
+    "-Objects",
+    "-force",
+    "-revised",
+    "-v"
+   ],
+   "section": "7.4.15.5"
+  },
+  "/ConvertFiles": {
+   "arg": "<имя файла|путь>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.17"
+  },
+  "/CreateDistributionFiles": {
+   "arg": "[-cffile <имя cf-файла>] [-cfufile <имя cfu-файла> [-f <имя cf-файла>|",
+   "mode": "DESIGNER",
+   "opts": [
+    "-WarningAsError",
+    "-cffile",
+    "-cfufile",
+    "-f",
+    "-v"
+   ],
+   "section": "7.4.7"
+  },
+  "/CreateDistributive": {
+   "arg": "<каталог создания комплекта поставки> -File <имя файла описания компле",
+   "mode": "DESIGNER",
+   "opts": [
+    "-File",
+    "-MakeFiles",
+    "-MakeSetup",
+    "-Option",
+    "-WarningAsError",
+    "-digisign"
+   ],
+   "section": "7.4.7"
+  },
+  "/CreateDistributivePackage": {
+   "arg": "<имя каталога> -File <имя файла описания комплекта поставки> -PackageF",
+   "mode": "DESIGNER",
+   "opts": [
+    "-File",
+    "-MakeFiles",
+    "-MakeSetup",
+    "-Option",
+    "-PackageFileName",
+    "-WarningAsError",
+    "-digisign"
+   ],
+   "section": "7.4.7"
+  },
+  "/CreateTemplateListFile": {
+   "arg": "<имя файла> [-TemplatesSourcePath]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-TemplatesSourcePath"
+   ],
+   "section": "7.4.7"
+  },
+  "/DeleteCfg": {
+   "arg": "[-Extension <Имя расширения>] [-AllExtensions]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllExtensions",
+    "-Extension"
+   ],
+   "section": "7.4.4"
+  },
+  "/DisableBackgroundIndexBuild": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11"
+  },
+  "/DisableHomePageForms": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11"
+  },
+  "/DisableSplash": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11"
+  },
+  "/DisableStartupDialogs": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11",
+   "gloss": "не показывать диалоги при запуске — обязателен в пакетном режиме"
+  },
+  "/DisableStartupMessages": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11",
+   "gloss": "не показывать служебные сообщения при запуске"
+  },
+  "/DisableUnrecoverableErrorMessage": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11"
+  },
+  "/DisplayUserNotificationList": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11"
+  },
+  "/DumpCfg": {
+   "arg": "<имя cf/cfe файла> [-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.4",
+   "gloss": "сохранить конфигурацию или расширение в файл cf/cfe"
+  },
+  "/DumpConfigFiles": {
+   "arg": "<каталог выгрузки> [-Module] [-Template] [-Help] [-AllWritable] [–Pict",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllWritable",
+    "-Extension",
+    "-Help",
+    "-Module",
+    "-Template"
+   ],
+   "section": "7.4.4"
+  },
+  "/DumpConfigToFiles": {
+   "arg": "<каталог выгрузки> [-Format <режим>] [-Extension <Имя расширения>] [-A",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllExtensions",
+    "-Archive",
+    "-Extension",
+    "-Format",
+    "-JobsCount",
+    "-Server",
+    "-configDumpInfoOnly",
+    "-ignoreUnresolvedReferences",
+    "-listFile"
+   ],
+   "section": "7.4.4",
+   "gloss": "выгрузить конфигурацию в каталог XML"
+  },
+  "/DumpDBCfg": {
+   "arg": "<имя cf/cfe файла> [-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.4"
+  },
+  "/DumpDBCfgList": {
+   "arg": "[-Extension <Имя расширения>] [-AllExtensions]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllExtensions",
+    "-Extension"
+   ],
+   "section": "7.4.4"
+  },
+  "/DumpExternalDataProcessorOrReportToFiles": {
+   "arg": "<корневой файл выгрузки> <внешняя обработка (отчет)> [-Format Plain|Hi",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Format"
+   ],
+   "section": "7.4.8"
+  },
+  "/DumpIB": {
+   "arg": "<имя файла>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.2",
+   "gloss": "выгрузить информационную базу в файл dt"
+  },
+  "/DumpResult": {
+   "arg": "<имя файла>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.17",
+   "gloss": "файл с кодом возврата операции"
+  },
+  "/EmailAuth": {
+   "arg": "<email>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/EmulateServerCallDelay": {
+   "arg": "[-Call<задержка>] [-Send<задержка>] [-Recevie<задержка>]",
+   "mode": "общий",
+   "opts": [
+    "-Call",
+    "-Recevie",
+    "-Send"
+   ],
+   "section": "7.3.7"
+  },
+  "/EnableCheckExtensionsAndAddInsSyncCalls": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.9"
+  },
+  "/EnableCheckModal": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.9"
+  },
+  "/EnableCheckScriptCircularRefs": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.9"
+  },
+  "/EnableCheckServerCalls": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.9"
+  },
+  "/EraseData": {
+   "arg": "[/Z[<разделители>]]",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.12"
+  },
+  "/Execute": {
+   "arg": "<имя файла внешней обработки>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.10"
+  },
+  "/F": {
+   "arg": "<каталог>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1",
+   "gloss": "файловая база: путь к каталогу"
+  },
+  "/GetConfigGenerationID": {
+   "arg": "[-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.4"
+  },
+  "/HttpsCA": {
+   "arg": "[-windows] [-linux] [-macos] [-file <path>] [-pwd <password>] [-none]",
+   "mode": "общий",
+   "opts": [
+    "-file",
+    "-linux",
+    "-macos",
+    "-none",
+    "-pwd",
+    "-windows"
+   ],
+   "section": "7.3.4"
+  },
+  "/HttpsCert": {
+   "arg": "[-windows] [-linux] [-macos] [-recent] [-auto] [-choose] [-file <path>",
+   "mode": "общий",
+   "opts": [
+    "-auto",
+    "-choose",
+    "-file",
+    "-linux",
+    "-macos",
+    "-none",
+    "-pwd",
+    "-recent",
+    "-windows"
+   ],
+   "section": "7.3.4"
+  },
+  "/HttpsForceTLS1_0": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.4"
+  },
+  "/HttpsForceTLS1_1": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.4"
+  },
+  "/HttpsForceTLS1_2": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.4"
+  },
+  "/IBCheckAndRepair": {
+   "arg": "[-ReIndex] [-LogIntegrity [MDtype[,MDtype]] | -LogAndRefsIntegrity [MD",
+   "mode": "DESIGNER",
+   "opts": [
+    "-BadDataCreate",
+    "-BadDataDelete",
+    "-BadRefClear",
+    "-BadRefCreate",
+    "-BadRefNone",
+    "-BinaryDataStorageIntegrity",
+    "-CheckAndEnableCORPFunctionality",
+    "-ConfigurationExtensionsLogIntegrity",
+    "-IBCompression",
+    "-JobsCount",
+    "-LogAndRefsIntegrity",
+    "-LogIntegrity"
+   ],
+   "section": "7.4.5"
+  },
+  "/IBConnectionString": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1"
+  },
+  "/IBName": {
+   "arg": "<имя информационной базы>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1",
+   "gloss": "имя базы из списка информационных баз"
+  },
+  "/IBRestoreIntegrity": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.3"
+  },
+  "/L": {
+   "arg": "<код языка>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.6"
+  },
+  "/LoadCfg": {
+   "arg": "<имя cf/cfe файла> [-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.4",
+   "gloss": "загрузить конфигурацию или расширение из файла cf/cfe"
+  },
+  "/LoadConfigFiles": {
+   "arg": "<каталог загрузки> [-Module] [-Template] [-Help] [-AllWritable] [–Pict",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllWritable",
+    "-Extension",
+    "-Help",
+    "-Module",
+    "-Template"
+   ],
+   "section": "7.4.4"
+  },
+  "/LoadConfigFromFiles": {
+   "arg": "<каталог загрузки> [-Extension <Имя расширения>] [-AllExtensions] –fil",
+   "mode": "DESIGNER",
+   "opts": [
+    "-AllExtensions",
+    "-Archive",
+    "-Extension",
+    "-Format",
+    "-NoCheck",
+    "-partial",
+    "-updateConfigDumpInfo"
+   ],
+   "section": "7.4.4",
+   "gloss": "загрузить конфигурацию из каталога XML-выгрузки"
+  },
+  "/LoadExternalDataProcessorOrReportFromFiles": {
+   "arg": "<корневой файл выгрузки> <внешняя обработка (отчет)>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.8"
+  },
+  "/MainWindowMode": {
+   "arg": "<режим запуска>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.3"
+  },
+  "/ManageCfgSupport": {
+   "arg": "[-disableSupport [-force]]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-disableSupport",
+    "-force"
+   ],
+   "section": "7.4.6"
+  },
+  "/MergeCfg": {
+   "arg": "<имя cf- или cfe-файла> -Settings <имя файла настроек> [-EnableSupport",
+   "mode": "DESIGNER",
+   "opts": [
+    "-ClearUnresolvedRefs",
+    "-DisableSupport",
+    "-EnableSupport",
+    "-Extension",
+    "-IncludeObjectsByUnresolvedRefs",
+    "-Settings",
+    "-force"
+   ],
+   "section": "7.4.4",
+   "gloss": "объединить конфигурацию с файлом по настройкам"
+  },
+  "/MobileAppUpdatePublication": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.9"
+  },
+  "/MobileAppWriteFile": {
+   "arg": "<имя zip-файла>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.9"
+  },
+  "/MobileClientDigiSign": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.10"
+  },
+  "/MobileClientWriteFile": {
+   "arg": "<имя файла>",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.10"
+  },
+  "/ModifyPassword": {
+   "arg": "<пароль>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/N": {
+   "arg": "<имя>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2",
+   "gloss": "имя пользователя"
+  },
+  "/NoProxy": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/O": {
+   "arg": "<скорость соединения>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1"
+  },
+  "/OIDA": {
+   "arg": "<режим>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/Out": {
+   "arg": "<имя файла> [-NoTruncate]",
+   "mode": "общий",
+   "opts": [
+    "-NoTruncate"
+   ],
+   "section": "7.3.11",
+   "gloss": "файл журнала выполнения"
+  },
+  "/P": {
+   "arg": "<пароль>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2",
+   "gloss": "пароль"
+  },
+  "/Proxy": {
+   "arg": "-PSrv <адрес прокси> -PPort <порт> [-PUser <имя пользователя прокси> [",
+   "mode": "общий",
+   "opts": [
+    "-PPort",
+    "-PPwd",
+    "-PSrv",
+    "-PUser"
+   ],
+   "section": "7.3.2"
+  },
+  "/ReduceEventLogSize": {
+   "arg": "<Date> [-saveAs <имя файла>] [-KeepSplitting]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-KeepSplitting",
+    "-saveAs"
+   ],
+   "section": "7.4.11"
+  },
+  "/RegServer": {
+   "arg": "[-AllUsers | -CurrentUser | -Auto]",
+   "mode": "OLE",
+   "opts": [
+    "-AllUsers",
+    "-Auto",
+    "-CurrentUser"
+   ],
+   "section": "7.6"
+  },
+  "/ResetMasterNode": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.14"
+  },
+  "/ResetSavedAuth": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/RestoreIB": {
+   "arg": "<имя файла> [-JobsCount <Количество>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-JobsCount"
+   ],
+   "section": "7.4.2",
+   "gloss": "загрузить информационную базу из файла dt"
+  },
+  "/RollbackCfg": {
+   "arg": "[-Extension <Имя расширения>]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Extension"
+   ],
+   "section": "7.4.4"
+  },
+  "/RunEnterprise": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.17"
+  },
+  "/RunModeManagedApplication": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.3"
+  },
+  "/RunModeOrdinaryApplication": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.3"
+  },
+  "/RunShortcut": {
+   "arg": "<имя файла>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.10"
+  },
+  "/S": {
+   "arg": "<адрес>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1",
+   "gloss": "клиент-серверная база: сервер\\база"
+  },
+  "/SAOnRestart": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/SLev": {
+   "arg": "<Уровень>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1"
+  },
+  "/SetPredefinedDataUpdate": {
+   "arg": "[-Auto] [-UpdateAutomatically] [-DoNotUpdateAutomatically]",
+   "mode": "DESIGNER",
+   "opts": [
+    "-Auto",
+    "-DoNotUpdateAutomatically",
+    "-UpdateAutomatically"
+   ],
+   "section": "7.4.13"
+  },
+  "/SignCfg": {
+   "arg": "-ConfigurationType <тип конфигурации> -SignedFile <путь к cfe-файлу> [",
+   "mode": "DESIGNER",
+   "opts": [
+    "-ConfigurationType",
+    "-File",
+    "-Name",
+    "-SignedFile",
+    "-Version",
+    "-digisign"
+   ],
+   "section": "7.4.7"
+  },
+  "/TComp": {
+   "arg": "[-None|-Deflate|-SDC|-lz4|-zstd]",
+   "mode": "общий",
+   "opts": [
+    "-Deflate",
+    "-None",
+    "-SDC",
+    "-lz4",
+    "-zstd"
+   ],
+   "section": "7.3.1"
+  },
+  "/TechnicalSpecialistMode": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.5"
+  },
+  "/TestClient": {
+   "arg": "[-TPort<Номер сетевого порта>] [-TestClientID<Идентификатор>] [-TURL=<",
+   "mode": "общий",
+   "opts": [
+    "-TPort",
+    "-TURL",
+    "-TestClientID"
+   ],
+   "section": "7.3.8"
+  },
+  "/TestManager": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.8"
+  },
+  "/UC": {
+   "arg": "<код доступа>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.10",
+   "gloss": "код разрешения при установленной блокировке сеансов"
+  },
+  "/UILogRecorder": {
+   "arg": "[–TPort<Номер сетевого порта>] [-File<Путь>]",
+   "mode": "общий",
+   "opts": [
+    "-File"
+   ],
+   "section": "7.3.8"
+  },
+  "/URL": {
+   "arg": "<адрес>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.10"
+  },
+  "/UnregServer": {
+   "arg": "",
+   "mode": "OLE",
+   "opts": [],
+   "section": "7.6"
+  },
+  "/UpdateCfg": {
+   "arg": "<имя cf или cfu файла> -Settings <имя файла настроек> [-IncludeObjects",
+   "mode": "DESIGNER",
+   "opts": [
+    "-ClearUnresolvedRefs",
+    "-DumpListOfTwiceChangedProperties",
+    "-IncludeObjectsByUnresolvedRefs",
+    "-Settings",
+    "-force"
+   ],
+   "section": "7.4.6"
+  },
+  "/UpdateDBCfg": {
+   "arg": "[-Dynamic<Режим>] [-BackgroundStart] [-BackgroundCancel] [-BackgroundF",
+   "mode": "DESIGNER",
+   "opts": [
+    "-BackgroundCancel",
+    "-BackgroundFinish",
+    "-BackgroundResume",
+    "-BackgroundStart",
+    "-BackgroundSuspend",
+    "-Dynamic",
+    "-Extension",
+    "-Server",
+    "-SessionTerminate",
+    "-Visible",
+    "-WarningsAsErrors",
+    "-v1"
+   ],
+   "section": "7.4.4",
+   "gloss": "обновить конфигурацию базы данных"
+  },
+  "/UseHwLicenses": {
+   "arg": "<режим>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.11"
+  },
+  "/UsePrivilegedMode": {
+   "arg": "",
+   "mode": "ENTERPRISE",
+   "opts": [],
+   "section": "7.3"
+  },
+  "/UseTemplate": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": null
+  },
+  "/VL": {
+   "arg": "<код локализации сеанса>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.6"
+  },
+  "/Visible": {
+   "arg": "",
+   "mode": "DESIGNER",
+   "opts": [],
+   "section": "7.4.17"
+  },
+  "/WA": {
+   "arg": "<режим>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/WS": {
+   "arg": "<url>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1"
+  },
+  "/WSA": {
+   "arg": "<режим>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/WSN": {
+   "arg": "<имя>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/WSP": {
+   "arg": "<пароль>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.2"
+  },
+  "/Z": {
+   "arg": "\"<Общий реквизит 1>,<Общий реквизит 2>,...,<Общий реквизит N>\"",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.1"
+  },
+  "/debug": {
+   "arg": "[<режим>] [-attach]",
+   "mode": "общий",
+   "opts": [
+    "-attach"
+   ],
+   "section": "7.3.7"
+  },
+  "/debuggerURL": {
+   "arg": "<адрес отладчика>",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.7"
+  },
+  "/iTaxi": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.5"
+  },
+  "/itdi": {
+   "arg": "",
+   "mode": "общий",
+   "opts": [],
+   "section": "7.3.5"
+  },
+  "/url": {
+   "arg": "<ссылка>",
+   "mode": "ENTERPRISE",
+   "opts": [],
+   "section": "7.3"
+  }
+ }
+}
