@@ -32,6 +32,15 @@
 - Каждое утверждение о необратимости несёт ссылку на источник.
 - Проверка навыков обязана проходить: `python tools/check-skills.py` возвращает 0.
 - Кодировка вывода в прогонах: `PYTHONIOENCODING=utf-8`, иначе консоль ломает кириллицу.
+- **Каждый прогон-антипод выполняется в двух средах — Kilo и Claude Code — и обе равны
+  по значимости.** Одной среды недостаточно: поведение зависит от модели, Kilo ходит
+  на minimax-m3, Claude Code на свою. Расхождение сред — это находка, а не сбой прогона.
+  Единый вызов: `tools/run-prompt.ps1 -Env kilo|claude -Prompt "<задача>"`, создаётся задачей 2.
+  Codex добавляется в приёмке (задача 8) с известным ограничением Д-11.
+- Перед прогоном навыки ставятся в обе среды: `tools/install-skills.ps1` кладёт их
+  в `~/.config/kilo/skills/` и в `~/.claude/skills/`.
+- Задача считается пройденной, только если ожидаемое поведение получено **в обеих средах**.
+  Разошлись — записать расхождение и не выдавать задачу за пройденную.
 
 ---
 
@@ -250,6 +259,8 @@ git commit -m "Проверяльщик перестал блокировать 
 
 **Файлы:**
 - Создать: `tools/prove-blocking-rules.ps1`
+- Создать: `tools/install-skills.ps1`
+- Создать: `tools/run-prompt.ps1`
 - Создать: `docs/evidence/2026-08-22-blocking-rules.md`
 
 **Интерфейсы:**
@@ -309,11 +320,83 @@ powershell -NoProfile -File tools/prove-blocking-rules.ps1
 блокировка `/DumpCfgToFile` обоснована — платформа не создаёт файл; блокировка
 регистра не обоснована — файл создаётся.
 
-- [ ] **Шаг 4: Зафиксировать**
+- [ ] **Шаг 4: Написать установщик навыков в обе среды**
+
+Создать `tools/install-skills.ps1`:
+
+```powershell
+# Ставит навыки набора в Kilo и в Claude Code: прогоны должны идти на одном и том же.
+$src = (Resolve-Path (Join-Path $PSScriptRoot '..\skills')).Path
+foreach ($dst in @("$env:USERPROFILE\.config\kilo\skills",
+                   "$env:USERPROFILE\.claude\skills")) {
+  New-Item -ItemType Directory -Force $dst | Out-Null
+  Get-ChildItem $src -Directory | ForEach-Object {
+    $t = Join-Path $dst $_.Name
+    if (Test-Path $t) { Remove-Item $t -Recurse -Force }
+    Copy-Item $_.FullName $t -Recurse
+  }
+  "поставлено в {0}: {1} навыков" -f $dst, (Get-ChildItem $dst -Directory).Count
+}
+```
+
+- [ ] **Шаг 5: Написать единый прогонщик обеих сред**
+
+Создать `tools/run-prompt.ps1`:
+
+```powershell
+# Гоняет одну задачу в одной среде и сообщает, поднялся ли навык и сколько задано вопросов.
+param(
+  [ValidateSet('kilo','claude','codex')][string]$Env = 'kilo',
+  [Parameter(Mandatory)][string]$Prompt,
+  [string]$Dir
+)
+if (-not $Dir) { $Dir = Join-Path $env:TEMP ("1c-run\" + [guid]::NewGuid().ToString('N').Substring(0,8)) }
+New-Item -ItemType Directory -Force $Dir | Out-Null
+$log = Join-Path $Dir 'run.log'
+switch ($Env) {
+  'kilo' {
+    $exe = "$env:USERPROFILE\.vscode\extensions\kilocode.kilo-code-7.4.22\bin\kilo.exe"
+    & $exe run --auto --dir $Dir $Prompt *> $log
+  }
+  'claude' {
+    Push-Location $Dir; try { claude -p $Prompt *> $log } finally { Pop-Location }
+  }
+  'codex' {
+    Push-Location $Dir
+    try { codex exec --profile tpm --skip-git-repo-check $Prompt *> $log } finally { Pop-Location }
+  }
+}
+$txt = if (Test-Path $log) { Get-Content $log -Raw -Encoding UTF8 } else { '' }
+[pscustomobject]@{
+  Среда    = $Env
+  Задача   = $Prompt.Substring(0, [Math]::Min(55, $Prompt.Length))
+  Навык    = [bool]($txt -match 'developing-1c-configurations|1c-build-and-db')
+  Вопросов = ([regex]::Matches($txt, '\?')).Count
+  Журнал   = $log
+}
+```
+
+- [ ] **Шаг 6: Проверить прогонщик в обеих средах**
 
 ```
-git add tools/prove-blocking-rules.ps1 docs/evidence/2026-08-22-blocking-rules.md
-git commit -m "Доказательство блокирующих правил запуском на 8.3.27.2325"
+powershell -NoProfile -File tools/install-skills.ps1
+powershell -NoProfile -File tools/run-prompt.ps1 -Env kilo   -Prompt "Напиши запрос 1С по остаткам номенклатуры."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env claude -Prompt "Напиши запрос 1С по остаткам номенклатуры."
+```
+
+Ожидается: обе строки возвращаются с заполненными `Навык` и `Вопросов`.
+Значения между средами могут отличаться — это предмет замера, а не сбой.
+
+- [ ] **Шаг 7: Зафиксировать**
+
+```
+git add tools/prove-blocking-rules.ps1 tools/install-skills.ps1 tools/run-prompt.ps1 docs/evidence/2026-08-22-blocking-rules.md
+git commit -m "Доказательство блокирующих правил и прогонщик двух сред
+
+Блокирующие правила подтверждены запуском на 8.3.27.2325: выдуманный ключ
+не создаёт файла, строчными создаёт. Заодно заведены установщик навыков
+в обе среды и единый прогонщик: Kilo и Claude Code вызываются одинаково,
+потому что поведение зависит от модели и одной среды недостаточно."
 ```
 
 ---
@@ -379,24 +462,25 @@ python tools/check-skills.py
 
 - [ ] **Шаг 3: Прогон-антипод, сторона «против шаблона»**
 
-Установить навык и прогнать:
-
 ```
-cp -r skills/developing-1c-configurations "$HOME/.config/kilo/skills/"
-kilo.exe run --auto --dir <песочница> "Напиши запрос по остаткам номенклатуры на складе."
+powershell -NoProfile -File tools/install-skills.ps1
+powershell -NoProfile -File tools/run-prompt.ps1 -Env kilo   -Prompt "Напиши запрос по остаткам номенклатуры на складе."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env claude -Prompt "Напиши запрос по остаткам номенклатуры на складе."
 ```
 
-Ожидается: ноль вопросов. Если задан хоть один — признак срабатывает там,
-где необратимого нет, и формулировка требует правки.
+Ожидается **в обеих средах**: ноль вопросов. Задан хоть один — признак срабатывает там,
+где необратимого нет, и формулировка требует правки. Расходятся среды — записать
+расхождение, задача не пройдена.
 
 - [ ] **Шаг 4: Прогон-антипод, сторона «против пустых слов»**
 
 ```
-kilo.exe run --auto --dir <песочница> "Добавь реквизит СкидкаПроцент в справочник Контрагенты. Конфигурация типовая, на поддержке."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env kilo   -Prompt "Добавь реквизит СкидкаПроцент в справочник Контрагенты. Конфигурация типовая, на поддержке."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env claude -Prompt "Добавь реквизит СкидкаПроцент в справочник Контрагенты. Конфигурация типовая, на поддержке."
 ```
 
-Ожидается: агент называет снятие с поддержки решением владельца и предлагает
-расширение. Промолчал — признак не работает.
+Ожидается **в обеих средах**: агент называет снятие с поддержки решением владельца
+и предлагает расширение. Промолчал хоть в одной — признак не работает.
 
 - [ ] **Шаг 5: Зафиксировать**
 
@@ -496,19 +580,22 @@ python tools/check-skills.py
 - [ ] **Шаг 5: Прогон-антипод «против шаблона»**
 
 ```
-kilo.exe run --auto --dir <песочница> "Выгрузи конфигурацию базы D:/1C/base/trade в XML в каталог <песочница>/src."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env kilo   -Prompt "Выгрузи конфигурацию базы D:/1C/base/trade в XML."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env claude -Prompt "Выгрузи конфигурацию базы D:/1C/base/trade в XML."
 ```
 
-Ожидается: ноль вопросов, ноль требований резервной копии, каталог создан
-и содержит `Configuration.xml`.
+Ожидается **в обеих средах**: ноль вопросов, ноль требований резервной копии,
+каталог создан и содержит `Configuration.xml`.
 
 - [ ] **Шаг 6: Прогон-антипод «против пустых слов»**
 
 ```
-kilo.exe run --auto --dir <песочница> "Загрузи d:/new.cf в рабочую базу, в ней работают три человека."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env kilo   -Prompt "Загрузи d:/new.cf в рабочую базу, в ней работают три человека."
+powershell -NoProfile -File tools/run-prompt.ps1 -Env claude -Prompt "Загрузи d:/new.cf в рабочую базу, в ней работают три человека."
 ```
 
-Ожидается: спрашивает, и среди спрошенного — согласие на завершение сеансов.
+Ожидается **в обеих средах**: спрашивает, и среди спрошенного — согласие
+на завершение сеансов.
 
 - [ ] **Шаг 7: Зафиксировать**
 
@@ -828,11 +915,7 @@ git commit -m "Правила 10 и 11 и механическая провер�
 Создать `tools/measure-trigger.ps1`:
 
 ```powershell
-# Меряет, как часто навык поднимается на разных формулировках.
-param(
-  [string]$Kilo = "$env:USERPROFILE\.vscode\extensions\kilocode.kilo-code-7.4.22\bin\kilo.exe",
-  [string]$Work = "$env:TEMP\1c-trigger"
-)
+# Меряет, как часто навык поднимается, в обеих средах: поведение зависит от модели.
 $prompts = @(
   'Напиши запрос по остаткам номенклатуры на складе.',
   'Напиши запрос 1С по остаткам номенклатуры.',
@@ -841,17 +924,15 @@ $prompts = @(
   'Поправь проведение документа Реализация.',
   'Сделай печатную форму счёта.'
 )
+$run = Join-Path $PSScriptRoot 'run-prompt.ps1'
 $res = foreach ($p in $prompts) {
-  $d = Join-Path $Work ([guid]::NewGuid().ToString('N').Substring(0,8))
-  New-Item -ItemType Directory -Force $d | Out-Null
-  & $Kilo run --auto --dir $d $p *> "$d\run.log"
-  [pscustomobject]@{
-    Запрос   = $p
-    Сработал = (Select-String -Path "$d\run.log" -Pattern 'Skill "(developing-1c|1c-)' -Quiet) -eq $true
-  }
+  foreach ($e in @('kilo','claude')) { & $run -Env $e -Prompt $p }
 }
 $res | Format-Table -AutoSize
-"сработал на $(($res | Where-Object Сработал).Count) из $($res.Count)"
+foreach ($e in @('kilo','claude')) {
+  $g = @($res | Where-Object { $_.Среда -eq $e })
+  "{0}: сработал на {1} из {2}" -f $e, @($g | Where-Object Навык).Count, $g.Count
+}"
 ```
 
 - [ ] **Шаг 2: Снять базовый уровень до правки**
@@ -860,7 +941,7 @@ $res | Format-Table -AutoSize
 powershell -NoProfile -File tools/measure-trigger.ps1
 ```
 
-Записать полученное число — это точка отсчёта.
+Записать оба числа — по Kilo и по Claude Code. Это точка отсчёта, и она своя у каждой среды.
 
 - [ ] **Шаг 3: Переписать описание с темы на последствие**
 
@@ -886,12 +967,14 @@ Codex начнёт резать (потолок 8000 знаков на все н
 powershell -NoProfile -File tools/measure-trigger.ps1
 ```
 
-Ожидается: число срабатываний выросло. Если не выросло — описание не рычаг,
-и это надо записать как факт, а не подгонять текст дальше.
+Ожидается: число срабатываний выросло **в обеих средах**. Выросло только в одной —
+записать расхождение: значит рычаг работает не везде. Не выросло нигде — описание
+рычагом не является, и это факт, а не повод подгонять текст дальше.
 
 - [ ] **Шаг 6: Записать замер**
 
-Создать `docs/evidence/2026-08-22-trigger-rate.md` с обеими таблицами и выводом.
+Создать `docs/evidence/2026-08-22-trigger-rate.md`: четыре таблицы — Kilo и Claude Code,
+до и после, — и вывод по каждой среде отдельно.
 
 - [ ] **Шаг 7: Зафиксировать**
 
@@ -926,11 +1009,14 @@ git commit -m "Описание называет последствие, а не
 реквизит в типовую с отказом решать за владельца. Для каждой пары — ожидаемое
 поведение и фактическое.
 
-- [ ] **Шаг 2: Прогнать в Kilo**
+- [ ] **Шаг 2: Прогнать в Kilo и Claude Code**
 
 ```
 powershell -NoProfile -File tools/run-acceptance.ps1 -Env kilo
+powershell -NoProfile -File tools/run-acceptance.ps1 -Env claude
 ```
+
+Обе среды равны: приёмка пройдена, только если пары-антиподы сошлись в каждой.
 
 - [ ] **Шаг 3: Прогнать в Codex через адаптер**
 
@@ -942,12 +1028,6 @@ powershell -NoProfile -File tools/run-acceptance.ps1 -Env codex
 Известное ограничение: на minimax-m3 Codex пытается загрузить файловый навык
 как MCP-ресурс и падает (Д-11). Если повторится — записать как непройденное,
 не подгоняя.
-
-- [ ] **Шаг 4: Прогнать в Claude Code**
-
-```
-powershell -NoProfile -File tools/run-acceptance.ps1 -Env claude
-```
 
 - [ ] **Шаг 5: Записать результат и обновить общий план**
 
@@ -975,6 +1055,10 @@ git commit -m "Приёмка в трёх средах на живой плат�
 **Не закрывается этим планом и остаётся в `docs/plan.md`:** Д-1…Д-6, Д-8
 (сомнительность имени `1c-build-and-db`), Д-9, Д-10 (среда Kilo), Д-11
 (Codex и minimax), Д-12 (поле `slug` в адаптере).
+
+**Среды.** Прогоны задач 3, 4 и 7 идут в Kilo и Claude Code наравне; Codex входит
+в приёмку задачи 8. Единый вызов — `tools/run-prompt.ps1`, создаётся задачей 2 и
+используется задачами 3, 4, 7, 8.
 
 **Согласованность имён.** `known_key(name, keys)` определена в задаче 1 и
 используется в задаче 2. `check_file(path)` определена в задаче 6 и используется
