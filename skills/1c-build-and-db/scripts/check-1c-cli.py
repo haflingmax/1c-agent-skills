@@ -1,13 +1,14 @@
 """Проверка командной строки 1С:Предприятия до её запуска.
 
 Ловит то, что модель выдумывает чаще всего: несуществующий ключ, ключ не из того
-режима, опцию не от той команды, отсутствие обязательного пакетного ключа.
+режима, опцию не от той команды, отсутствие обязательного пакетного ключа и
+заглушку вместо настоящего пути.
 
 Состав ключей взят из руководства администратора 8.3.27, приложение 7
 (140 ключей), и лежит в cli-keys.json рядом с этим файлом.
 
-    python tools/check-1c-cli.py "1cv8 DESIGNER /F d:/base /LoadCfg new.cf /UpdateDBCfg"
-    echo "<команда>" | python tools/check-1c-cli.py
+    python scripts/check-1c-cli.py "1cv8 DESIGNER /F d:/base /LoadCfg new.cf /UpdateDBCfg"
+    echo "<команда>" | python scripts/check-1c-cli.py
 
 Код возврата 0 — замечаний нет, 1 — есть. Годится для CI и для вызова из навыка.
 """
@@ -26,6 +27,24 @@ BATCH_REQUIRED = "/DisableStartupDialogs"
 
 # Ключи, которые меняют базу необратимо. Для них проверяем страховку.
 DESTRUCTIVE = {"/LoadCfg", "/LoadConfigFromFiles", "/UpdateDBCfg", "/RestoreIB", "/MergeCfg"}
+
+# Заглушки вместо настоящих значений. Команда с такой подстановкой либо не
+# запустится, либо отработает не там, поэтому это ошибка, а не замечание.
+PLACEHOLDERS = [
+    (re.compile(r"8\.\d+\.(?:x+|n+|\?\?)(?![0-9])", re.I),
+     "версия платформы не подставлена"),
+    (re.compile(r"(?<![A-Za-z0-9])(?:xxx+|yyyy|nnnn)(?![A-Za-z0-9])", re.I),
+     "заглушка вместо части пути"),
+    (re.compile(r"%[A-Za-z_]\w*%"),
+     "переменная окружения в имени файла: %date% зависит от локали и содержит "
+     "разделители, имя файла получается непредсказуемым"),
+    (re.compile(r"<[^<>]{2,40}>"),
+     "угловые скобки из документации оставлены в команде"),
+    (re.compile(r"(?<![А-Яа-яЁёA-Za-z])(?:ваш\w*|путь_к|path_to|your)(?![А-Яа-яЁёA-Za-z])", re.I),
+     "подстановка словом вместо настоящего пути"),
+    (re.compile(r"\.{3,}"),
+     "многоточие вместо значения"),
+]
 
 
 def load_catalog():
@@ -80,12 +99,13 @@ def check(line, catalog):
     for i, a in enumerate(args):
         if not a.startswith("/"):
             continue
-        # /L<код> и /VL<код> пишутся слитно со значением
         name = a.split(":", 1)[0]
         if name in keys:
             used.append((name, i))
             continue
-        glued = next((k for k in keys if len(k) > 2 and name.startswith(k) and len(name) > len(k)), None)
+        # /L<код> и /VL<код> пишутся слитно со значением
+        glued = next((k for k in keys
+                      if len(k) > 2 and name.startswith(k) and len(name) > len(k)), None)
         if glued:
             used.append((glued, i))
             continue
@@ -96,10 +116,9 @@ def check(line, catalog):
         else:
             problems.append("%s — такого ключа нет в документации 8.3.27" % a)
 
-    for name, i in used:
-        info = keys[name]
-        km = info.get("mode")
-        if mode and km not in ("общий", None) and km != mode and km in MODE_WORDS:
+    for name, _ in used:
+        km = keys[name].get("mode")
+        if mode and km in MODE_WORDS and km != mode:
             problems.append(
                 "%s работает в режиме %s, а команда запущена как %s" % (name, km, mode))
 
@@ -121,23 +140,27 @@ def check(line, catalog):
             hint = (", возможно " + near[0]) if near else ""
             problems.append("%s не является опцией %s%s" % (a, current, hint))
 
+    # заглушки ищем по всей строке: <каталог базы> разрезается пробелом на два слова
+    for pat, why in PLACEHOLDERS:
+        m = pat.search(line)
+        if m:
+            problems.append("«%s» — %s; значение запрашивается у человека, "
+                            "а не выдумывается" % (m.group(0), why))
+
     names = {n for n, _ in used}
 
     if mode == "DESIGNER" and names and BATCH_REQUIRED not in names:
         notes.append(
             "нет %s — пакетный запуск откроет диалог и остановится" % BATCH_REQUIRED)
 
-    if names & DESTRUCTIVE:
-        if "/Out" not in names and "/DumpResult" not in names:
-            notes.append(
-                "нет /Out и /DumpResult — при сбое не останется ни журнала, ни кода возврата")
+    if names & DESTRUCTIVE and "/Out" not in names and "/DumpResult" not in names:
+        notes.append(
+            "нет /Out и /DumpResult — при сбое не останется ни журнала, ни кода возврата")
 
-    if "/UpdateDBCfg" in names:
-        dyn = [a for a in args if a.lower().startswith("-dynamic")]
-        if not dyn:
-            notes.append(
-                "/UpdateDBCfg без -Dynamic: решение о динамическом обновлении "
-                "принимается заранее, а не оставляется платформе")
+    if "/UpdateDBCfg" in names and not any(a.lower().startswith("-dynamic") for a in args):
+        notes.append(
+            "/UpdateDBCfg без -Dynamic: решение о динамическом обновлении "
+            "принимается заранее, а не оставляется платформе")
 
     if not any(a.startswith("/F") or a.startswith("/S") or a.startswith("/IBName")
                or a.upper() == "CREATEINFOBASE" for a in args):
@@ -154,8 +177,7 @@ def main():
         print(__doc__.strip().splitlines()[0])
         return 2
 
-    catalog = load_catalog()
-    problems, notes = check(line, catalog)
+    problems, notes = check(line, load_catalog())
 
     for p in problems:
         print("[ошибка] %s" % p)
