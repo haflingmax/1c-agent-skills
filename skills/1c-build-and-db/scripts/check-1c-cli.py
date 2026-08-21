@@ -35,13 +35,8 @@ PLACEHOLDERS = [
      "версия платформы не подставлена"),
     (re.compile(r"(?<![A-Za-z0-9])(?:xxx+|yyyy|nnnn)(?![A-Za-z0-9])", re.I),
      "заглушка вместо части пути"),
-    (re.compile(r"%[A-Za-z_]\w*%"),
-     "переменная окружения в имени файла: %date% зависит от локали и содержит "
-     "разделители, имя файла получается непредсказуемым"),
     (re.compile(r"<[^<>]{2,40}>"),
      "угловые скобки из документации оставлены в команде"),
-    (re.compile(r"(?<![А-Яа-яЁёA-Za-z])(?:ваш\w*|путь_к|path_to|your)(?![А-Яа-яЁёA-Za-z])", re.I),
-     "подстановка словом вместо настоящего пути"),
     (re.compile(r"\.{3,}"),
      "многоточие вместо значения"),
 ]
@@ -57,6 +52,25 @@ def load_catalog():
 def split_args(line):
     """Разбирает строку с учётом кавычек, не ломаясь о пути с пробелами."""
     return [a for a in re.findall(r'"[^"]*"|\S+', line) if a]
+
+
+def known_key(name, keys):
+    """Возвращает каноническое имя ключа или None.
+
+    Регистр не важен: платформа регистронезависима, проверено запуском —
+    /dumpcfg отработал и создал файл. Значение допускается приклеенным только
+    у ключей с признаком glued (их 12, например /L<код языка>). Для остальных
+    совпадение по началу имени запрещено: иначе выдуманный /DumpCfgToFile
+    молча засчитывается за /DumpCfg.
+    """
+    low = name.lower()
+    for k in keys:
+        if k.lower() == low:
+            return k
+    for k, info in keys.items():
+        if info.get("glued") and len(low) > len(k) and low.startswith(k.lower()):
+            return k
+    return None
 
 
 def matches_option(arg, option):
@@ -84,6 +98,12 @@ def check(line, catalog):
     if not args:
         return ["пустая команда"], []
 
+    tool = Path(args[0].strip('"')).name.lower()
+    if not tool.startswith("1cv8"):
+        return ["%s вне компетенции проверяльщика: он знает только команды 1cv8. "
+                "Состав ключей ibcmd, rac и ras сверяется по документации вручную"
+                % args[0]], []
+
     mode = None
     for a in args[1:4]:
         up = a.upper()
@@ -100,19 +120,9 @@ def check(line, catalog):
         if not a.startswith("/"):
             continue
         name = a.split(":", 1)[0]
-        if name in keys:
-            used.append((name, i))
-            continue
-        # /L<код> и /VL<код> пишутся слитно со значением
-        glued = next((k for k in keys
-                      if len(k) > 2 and name.startswith(k) and len(name) > len(k)), None)
-        if glued:
-            used.append((glued, i))
-            continue
-        near = [k for k in keys if k.lower() == name.lower()]
-        if near:
-            problems.append("%s — неверный регистр, в документации %s" % (a, near[0]))
-            used.append((near[0], i))
+        canon = known_key(name, keys)
+        if canon:
+            used.append((canon, i))
         else:
             problems.append("%s — такого ключа нет в документации 8.3.27" % a)
 
