@@ -1,0 +1,20 @@
+{
+  "name": "1c-agent-skills",
+  "description": "Навыки для разработки конфигураций 1С:Предприятие 8.3: метаданные, управляемые формы, запросы, права, расширения, обновление типовых",
+  "version": "0.1.0",
+  "author": {
+    "name": "haflingmax"
+  },
+  "homepage": "https://github.com/haflingmax/1c-agent-skills",
+  "repository": "https://github.com/haflingmax/1c-agent-skills",
+  "license": "MIT",
+  "keywords": [
+    "1c",
+    "1c-enterprise",
+    "bsl",
+    "skills",
+    "metadata",
+    "managed-forms",
+    "edt"
+  ]
+}

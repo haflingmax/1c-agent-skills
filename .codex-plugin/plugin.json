@@ -1,0 +1,41 @@
+{
+  "name": "1c-agent-skills",
+  "version": "0.1.0",
+  "description": "Навыки для разработки конфигураций 1С:Предприятие 8.3 по исходникам: метаданные, управляемые формы, запросы, права, расширения, обновление типовых",
+  "author": {
+    "name": "haflingmax",
+    "url": "https://github.com/haflingmax"
+  },
+  "homepage": "https://github.com/haflingmax/1c-agent-skills",
+  "repository": "https://github.com/haflingmax/1c-agent-skills",
+  "license": "MIT",
+  "keywords": [
+    "1c",
+    "1c-enterprise",
+    "bsl",
+    "skills",
+    "metadata",
+    "managed-forms",
+    "queries",
+    "extensions",
+    "edt"
+  ],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "Навыки 1С",
+    "shortDescription": "Разработка конфигураций 1С:Предприятие 8.3 по исходникам",
+    "longDescription": "Набор ведёт агента по работе с выгрузкой конфигурации 1С: как отличить выгрузку конфигуратора от проекта EDT, какие правила ломают конфигурацию тихо, в каком порядке вести задачу и чем проверять результат. Разделы разрезаны по области знания разработчика: метаданные, формы, запросы, права, расширения, обновление и поддержка.",
+    "developerName": "haflingmax",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Добавь справочник в конфигурацию.",
+      "Разберись, почему конфигурация не загружается."
+    ],
+    "websiteURL": "https://github.com/haflingmax/1c-agent-skills"
+  }
+}
