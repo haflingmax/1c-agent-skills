@@ -112,7 +112,13 @@ def test_invented_key_off_glued_prefix_still_blocks():
 
 
 def test_known_key_matches_platform_longest_match():
-    """Н-02: платформа берёт самое длинное совпадение среди ВСЕХ ключей.
+    """Н-02, повторное ревью: «самое длинное совпадение среди ВСЕХ ключей» —
+    неверная формула буквально (см. test_longest_prefix_is_not_the_whole_rule
+    ниже, /PRoxy2024). Верно то, что она случайно предсказала правильно
+    здесь: /LoadCfg и /DumpCfg участвуют в совпадении, потому что их arg —
+    «голое» позиционное значение (absorbs_glued_tail), а /LoadCfg и /DumpCfg
+    оказываются длиннее /L — единственного короткого конкурента, у которого
+    в этих двух случаях реального длинного «под-ключевого» соперника нет.
 
     Проверено запуском: /LoadCfgFromFile платформа разбирает как /LoadCfg
     с позиционным аргументом FromFile, а не как /L со значением.
@@ -123,17 +129,53 @@ def test_known_key_matches_platform_longest_match():
     assert mod.known_key("/Lru", keys) == "/L"
 
 
-# Оба резолвятся в НЕ-glued ключ (/LoadCfg, /DumpCfg): хвост уходит не в
-# значение, а в позиционный аргумент, который платформа отправляет сама.
-# Проверено запуском дважды и оба раза неверно: /DumpCfgToFile выгружает
-# конфигурацию не в тот файл — тихая порча (docs/evidence/
-# 2026-08-22-blocking-rules.md), /LoadCfgFromFile падает кодом 1, «Файл не
-# обнаружен» (шаг 1 задачи 3, .superpowers/sdd/2026-08-23-core-remediation/
-# task-3-brief.md). В обоих случаях платформа доказанно не делает того, что
-# написано в команде — правило 11 требует блокировки, а не предупреждения.
+def test_longest_prefix_is_not_the_whole_rule():
+    """Н-02, находка ревью «новая блокировка законного» (Critical): формула
+    «самое длинное совпадение среди ВСЕХ ключей» блокировала бы законный
+    /PRoxy2024 — резолвился бы в /Proxy (длиннее /P), хотя платформа его
+    туда не резолвит вовсе.
+
+    Проверено запуском (2026-08-23): `/N Admin /PRoxy2024` и контрольный
+    `/N Admin /Padmin123` дают ОДИНАКОВУЮ ошибку «Пользователь ИБ не
+    идентифицирован» — платформа взяла /P + «Roxy2024» как пароль, а не
+    /Proxy. /Proxy при этом не сломан: с настоящими -PSrv/-PPort он прошёл
+    штатно, код 0 (см. docs/evidence/2026-08-22-blocking-rules.md).
+
+    Настоящий критерий — absorbs_glued_tail: /Proxy требует именованный
+    под-ключ первым делом (`-PSrv <адрес> ...`), глued-хвост эту форму не
+    удовлетворяет, поэтому /Proxy не участвует в совпадении вовсе, и
+    остаётся единственный кандидат — /P.
+    """
+    keys = CATALOG["ключи"]
+    assert mod.known_key("/PRoxy2024", keys) == "/P"
+    assert "/Proxy" in keys and not keys["/Proxy"].get("glued")
+
+
+def test_empty_arg_key_does_not_absorb_a_tail():
+    """Тот же критерий, другая форма отказа: /NoProxy вовсе не берёт
+    аргумента (`arg` пуст в cli-keys.json) — глued-хвосту нечем удовлетворить
+    пустую форму, и /NoProxy тоже не участвует в совпадении.
+
+    Проверено запуском (2026-08-23): `/NoProxyUser` даёт ту же ошибку
+    «Пользователь ИБ не идентифицирован», что и /N Admin — платформа взяла
+    /N + «oProxyUser» как имя пользователя, а не /NoProxy.
+    """
+    keys = CATALOG["ключи"]
+    assert mod.known_key("/NoProxyUser", keys) == "/N"
+    assert "/NoProxy" in keys and keys["/NoProxy"].get("arg") == ""
+
+
+# Резолвятся в ключ, чей arg — «голое» позиционное значение (absorbs_glued_tail
+# без учёта glued): хвост уходит не в значение, а в позиционный аргумент,
+# который платформа отправляет сама. Проверено запуском трижды и всякий раз
+# неверно: /DumpCfgToFile и /OutBase выгружают/логируют не в тот файл — тихая
+# порча (docs/evidence/2026-08-22-blocking-rules.md), /LoadCfgFromFile падает
+# кодом 1, «Файл не обнаружен». Во всех трёх платформа доказанно не делает
+# того, что написано в команде — правило 11 требует блокировки.
 INVENTED_LONGEST_MATCH_BLOCKS = [
     ("/LoadCfgFromFile", "/LoadCfg"),
     ("/DumpCfgToFile", "/DumpCfg"),
+    ("/OutBase", "/Out"),
 ]
 
 
@@ -141,12 +183,51 @@ INVENTED_LONGEST_MATCH_BLOCKS = [
 def test_longest_match_off_glued_prefix_blocks(key, canon):
     """Н-02: хвост-позиционный-аргумент — это не то же самое, что
     хвост-значение (test_glued_prefix_invented_key_warns_and_does_not_block),
-    и различить их теперь можно: по признаку glued резолвнутого ключа.
+    и различить их теперь можно: по форме arg резолвнутого ключа
+    (absorbs_glued_tail), а не по одному лишь факту «длиннее».
     """
     line = line_with(key)
     out = problems(line)
     assert any(key in p and canon in p for p in out), out
     assert exit_code(line) == 1
+
+
+# Наивная «самая длинная строка длиннее» правильно предсказывала бы /Proxy и
+# /NoProxy как победителей — платформа выбирает короткий glued-ключ, потому
+# что длинный кандидат не может принять хвост как своё значение (см.
+# test_longest_prefix_is_not_the_whole_rule и test_empty_arg_key_does_not_absorb_a_tail
+# выше). Здесь — регресс на уровне check(): такие команды не блокируются.
+NOT_LONGEST_MATCH_STAYS_GLUED = [
+    ("/PRoxy2024", "/P"),
+    ("/NoProxyUser", "/N"),
+]
+
+
+@pytest.mark.parametrize("key,canon", NOT_LONGEST_MATCH_STAYS_GLUED)
+def test_named_subflag_key_does_not_steal_the_match(key, canon):
+    """Критическая находка повторного ревью: /Proxy (`-PSrv ...`) и /NoProxy
+    (пустой arg) длиннее /P и /N соответственно, но не могут принять хвост
+    как своё значение — платформа проверено откатывается к короткому
+    glued-ключу, и блокировать эти команды было бы новой блокировкой
+    законного.
+    """
+    line = line_with(key)
+    assert problems(line) == [], problems(line)
+    out = notes(line)
+    assert any(key in n and canon in n for n in out), out
+    assert exit_code(line) == 0
+
+
+def test_proxy_with_required_subflags_is_an_exact_match():
+    """/Proxy написан правильно (с обязательными -PSrv/-PPort) — это точное
+    совпадение по имени ключа, а не хвост-коллизия с /P. Проверено запуском:
+    команда с настоящими -PSrv/-PPort отработала, код 0, файл создан
+    (docs/evidence/2026-08-22-blocking-rules.md).
+    """
+    assert mod.known_key("/Proxy", CATALOG["ключи"]) == "/Proxy"
+    line = ("1cv8 DESIGNER /F d:/base /Proxy -PSrv 127.0.0.1 -PPort 8080 "
+            "/DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log")
+    assert problems(line) == [], problems(line)
 
 
 def test_glued_flag_is_present_and_small():
