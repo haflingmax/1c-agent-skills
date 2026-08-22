@@ -9,14 +9,15 @@
 
 ## Состояние
 
-**Ядро готово, поднавыки в работе.** Сейчас в наборе один навык — ядро, которое задаёт
-правила и раскладку разделов. Шестнадцать разделов перечислены в нём и будут добавляться
-по одному.
+**Два навыка: ядро и `1c-build-and-db`, пятнадцать разделов ещё в работе.** Ядро задаёт
+правила и раскладку шестнадцати разделов; один из них — «Сборка и база» — уже собран в
+навык `1c-build-and-db`, остальные пятнадцать добавляются по одному.
 
 | Что | Состояние |
 |---|---|
 | `developing-1c-configurations` — ядро | готово |
-| Шестнадцать поднавыков по разделам | в работе |
+| `1c-build-and-db` — сборка и база | готово |
+| Пятнадцать поднавыков по остальным разделам | в работе |
 | Сверка раскладки с ИТС | выполнена по полному дереву v8std, metod8dev и руководству разработчика |
 
 ## Установка
@@ -36,7 +37,14 @@
 не нужно.
 
 **Codex:** репозиторий несёт `.codex-plugin/plugin.json` с указанием на `./skills/`, поэтому
-подключается как обычный плагин Codex.
+подключается как плагин Codex:
+
+```
+codex plugin marketplace add haflingmax/1c-agent-skills
+codex plugin add 1c-agent-skills@haflingmax-1c
+```
+
+Либо через обозреватель: `codex /plugins`.
 
 ### Отдельными навыками, без плагина
 
@@ -46,10 +54,11 @@
 |---|---|---|
 | Claude Code | `~/.claude/skills/` | `.claude/skills/` |
 | Kilo Code | `~/.config/kilo/skills/` | `.kilo/skills/` |
-| Codex, Copilot, Gemini | `~/.agents/skills/` | — |
+| Codex, Copilot, Gemini | `~/.agents/skills/` | `.agents/skills/` |
+| Cursor | `~/.cursor/skills/` | `.cursor/skills/` |
 
 ```powershell
-Copy-Item skills\* "$env:USERPROFILE\.claude\skills\" -Recurse -Force
+Copy-Item skills/* "$env:USERPROFILE/.claude/skills/" -Recurse -Force
 ```
 
 При таком способе обновлять придётся вручную, повторным копированием.
@@ -104,7 +113,7 @@ kilo debug skill          # Kilo
 | Среда | Что работает |
 |---|---|
 | Claude Code | все три режима |
-| Codex | все три режима |
+| Codex | не проверено на официальной модели; на связке с minimax-m3 через адаптер открыт Д-11 — автозагрузка навыка падает, 0 из 5 предпринятых прогонов ([docs/evidence/2026-08-22-acceptance.md](docs/evidence/2026-08-22-acceptance.md), [docs/plan.md](docs/plan.md)) |
 | Kilo Code | разовые задачи и операции с платформой |
 
 В Kilo конвеер с подагентами не запускается, если в конфигурации закрыт инструмент `task` —
@@ -119,7 +128,7 @@ kilo debug skill          # Kilo
 Любой навык набора обязан проходить проверку на соответствие спецификации:
 
 ```powershell
-python tools\check-skills.py
+python tools/check-skills.py
 ```
 
 Проверяются требования Anthropic к устройству навыка: ограничения на `name` и `description`,
