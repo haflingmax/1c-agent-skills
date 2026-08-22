@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "skills" / "1c-build-and-db" / "scripts" / "check-1c-cli.py"
 
@@ -40,9 +42,66 @@ def test_d13_invented_key_is_rejected():
 
 
 def test_d13_glued_value_key_still_works():
-    """Слитные ключи со значением остаются законными: /L<код языка>."""
+    """Слитные ключи со значением остаются законными: /L<код языка>.
+
+    Законными — значит не блокируются. Предупреждение при этом выдаётся, см.
+    test_glued_prefix_costs_a_note_on_legit_keys: отличить /Lru от выдуманного
+    /LoadCfgFromFile механически нельзя, и цена честности платится здесь.
+    """
     assert problems("1cv8 DESIGNER /F d:/base /Lru /DumpCfg d:/x.cf "
                     "/DisableStartupDialogs /Out d:/l.log") == []
+
+
+# Пять выдуманных ключей, каждый из которых начинается со слитного: /L, /P, /N,
+# /O, /WSA. До правки все пятеро проходили молча с кодом 0 — то есть главное
+# обещание проверяльщика («ловит выдуманный ключ») держалось только для ключей,
+# не начинающихся со слитного.
+INVENTED_ON_GLUED = [
+    ("/LoadCfgFromFile", "/L"),
+    ("/Publish", "/P"),
+    ("/NewConfiguration", "/N"),
+    ("/OptimizeDatabase", "/O"),
+    ("/WSAuthentication", "/WSA"),
+]
+
+
+def line_with(key):
+    return ("1cv8 DESIGNER /F d:/base %s d:/x.cf /DisableStartupDialogs "
+            "/Out d:/l.log" % key)
+
+
+@pytest.mark.parametrize("key,canon", INVENTED_ON_GLUED)
+def test_glued_prefix_invented_key_warns_and_does_not_block(key, canon):
+    """Выдуманный ключ на слитном префиксе называется вслух, но не блокируется.
+
+    Блокировать нельзя: /Publish и /Padmin, /LoadCfgFromFile и /Lru устроены
+    одинаково — слитный ключ плюс буквы. Проверено запуском, что законная
+    половина работает (/Lru + /DumpCfg создал файл), а значит запрет остановил
+    бы верное. Правило 11 архитектуры: не показал — не блокируй.
+    """
+    assert problems(line_with(key)) == [], problems(line_with(key))
+    out = notes(line_with(key))
+    assert any(key in n and canon in n for n in out), out
+    assert exit_code(line_with(key)) == 0
+
+
+@pytest.mark.parametrize("key", ["/Lru", "/Padmin"])
+def test_glued_prefix_costs_a_note_on_legit_keys(key):
+    """Цена решения: законный слитный ключ тоже получает предупреждение.
+
+    Это осознанно. Эвристика «хвост похож на имя ключа» не спасает: у /Publish
+    хвост «ublish», у /Padmin — «admin», оба строчные и одной длины.
+    """
+    assert problems(line_with(key)) == [], problems(line_with(key))
+    assert any(key in n for n in notes(line_with(key))), notes(line_with(key))
+    assert exit_code(line_with(key)) == 0
+
+
+def test_invented_key_off_glued_prefix_still_blocks():
+    """Защита точным совпадением на месте: /DumpCfgToFile — ошибка и код 1."""
+    line = line_with("/DumpCfgToFile")
+    assert any("DumpCfgToFile" in p for p in problems(line)), problems(line)
+    assert exit_code(line) == 1
 
 
 def test_glued_flag_is_present_and_small():
