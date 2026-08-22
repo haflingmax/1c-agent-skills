@@ -230,6 +230,70 @@ def test_proxy_with_required_subflags_is_an_exact_match():
     assert problems(line) == [], problems(line)
 
 
+# Третий раунд ревью, Critical: absorbs_glued_tail() признаёт кандидатом на
+# поглощение около пятидесяти НЕ-glued ключей (/S, /WS, /C,
+# /ConfigurationRepositoryF и другие — все с «голым» arg), но блокировка по
+# одному лишь признаку «не glued» была обобщением без своего прогона.
+# Рецензент собрал шесть таких команд и прогнал одну: DESIGNER
+# /Snosuchhost9999:1541/nodb — платформа разобрала /S<адрес> ВЕРНО
+# (server_addr=nosuchhost9999, «Этот хост неизвестен» — ошибка DNS, не
+# разбора). Переподтверждено координатором тем же прогоном.
+def test_proven_and_only_proven_keys_block_the_tail():
+    """Блокировка (не предупреждение) — только у трёх ключей из
+    PROVEN_TAIL_MISPARSE, каждый подтверждён своим прогоном. /S не входит в
+    этот список и не должен блокироваться, несмотря на то что участвует в
+    absorbs_glued_tail так же, как /LoadCfg/DumpCfg/Out.
+    """
+    assert mod.PROVEN_TAIL_MISPARSE.keys() == {"/LoadCfg", "/DumpCfg", "/Out"}
+    assert "/S" not in mod.PROVEN_TAIL_MISPARSE
+
+
+def test_glued_address_key_is_not_blocked():
+    """Критическая находка третьего раунда ревью: /S<адрес> (клиент-
+    серверная база, раздел 7.3.1) не glued, но участвует в
+    absorbs_glued_tail — платформа проверено разбирает его верно, значит
+    блокировать нельзя.
+
+    Проверено запуском (2026-08-23): `DESIGNER /Snosuchhost9999:1541/nodb`
+    дал `server_addr=nosuchhost9999`, «Этот хост неизвестен» — ошибка DNS
+    несуществующего хоста, а не разбора ключа. Платформа взяла /S с
+    хвостом «nosuchhost9999:1541/nodb» как значение, ровно как задокумен-
+    тировано (раздел 7.3.1: `/S<адрес сервера>[:<порт>][/<имя базы>]`).
+    """
+    line = ("1cv8 DESIGNER /Snosuchhost9999:1541/nodb "
+            "/DisableStartupDialogs /Out d:/l.log")
+    assert mod.known_key("/Snosuchhost9999:1541/nodb", CATALOG["ключи"]) == "/S"
+    assert problems(line) == [], problems(line)
+    out = notes(line)
+    assert any("/S" in n and "не проверял" in n for n in out), out
+    assert exit_code(line) == 0
+    # /S всё равно засчитан как заданная база — не должно быть побочной
+    # «не задана база» из-за того, что резолвнутый ключ не попал в used.
+    assert not any("не задана база" in p for p in problems(line))
+
+
+@pytest.mark.parametrize("key,canon", [
+    ("/WShttp://example.com/base", "/WS"),
+    ("/Cmytext", "/C"),
+    ("/ConfigurationRepositoryFd:/storage", "/ConfigurationRepositoryF"),
+    ("/ConvertFilesd:/some.cf", "/ConvertFiles"),
+    ("/DumpDBCfgd:/db.cf", "/DumpDBCfg"),
+])
+def test_unproven_absorbing_family_warns_not_blocks(key, canon):
+    """Пять дальнейших ключей того же семейства (та же природа коллизии,
+    что у /S) — тоже не в PROVEN_TAIL_MISPARSE, тоже должны предупреждать,
+    а не блокировать. Живым запуском не проверялись поштучно (кроме /S) —
+    и текст предупреждения обязан честно говорить «не проверялось», а не
+    претендовать на проверку, которой не было.
+    """
+    line = "1cv8 DESIGNER /F d:/base %s /DisableStartupDialogs /Out d:/l.log" % key
+    assert mod.known_key(key, CATALOG["ключи"]) == canon
+    assert problems(line) == [], problems(line)
+    out = notes(line)
+    assert any(canon in n and "не проверял" in n for n in out), out
+    assert exit_code(line) == 0
+
+
 def test_glued_flag_is_present_and_small():
     """Признак glued проставлен и стоит ровно у 12 ключей."""
     glued = [k for k, v in CATALOG["ключи"].items() if v.get("glued")]
