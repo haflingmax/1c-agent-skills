@@ -4,6 +4,7 @@
 Запуск: python -m pytest tests/test_check_1c_cli.py -v
 """
 import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -514,3 +515,57 @@ def test_help_flag_prints_docstring_and_returns_zero(flag):
     assert out.returncode == 0, out
     assert "вне компетенции" not in out.stdout, out.stdout
     assert "Проверка командной строки" in out.stdout, out.stdout
+
+
+# Н-14: диагностики получили идентификатор — на них можно сослаться и их
+# можно процитировать в тесте, не цепляясь за обрывок прозы, которую правка
+# текста меняет незаметно для теста (docs/reviews/2026-08-23-core-review.md).
+CODE_PATTERN = re.compile(r"^K\d{3}$")
+
+
+def test_diagnostic_codes_are_unique_and_well_formed():
+    """Каждая константа K_* — трёхзначный код без пропусков и дублей."""
+    codes = [v for k, v in vars(mod).items()
+             if k.startswith("K_") and isinstance(v, str)]
+    assert len(codes) >= 10, codes  # ~10 диагностик, как называет находка
+    assert all(CODE_PATTERN.match(c) for c in codes), codes
+    assert len(codes) == len(set(codes)), "коды не должны повторяться: %s" % codes
+
+
+def test_format_diag_splits_code_from_text():
+    """format_diag() кладёт код в скобки рядом с уровнем, а не в текст:
+    «[ошибка K999] текст», по образцу линтеров — ровно то, что просит находка.
+    """
+    assert mod.format_diag("ошибка", "K999 текст без кода") == "[ошибка K999] текст без кода"
+    # Строка без кода (гипотетическая) не ломается — код просто не появляется.
+    assert mod.format_diag("внимание", "текст совсем без кода") == "[внимание] текст совсем без кода"
+
+
+def test_no_base_error_is_addressable_by_code():
+    """Живой прогон печатает код диагностики, а не только прозу — K007 можно
+    процитировать в доказательстве или отключить точечно в будущем, не трогая
+    формулировку. Проверено запуском самого скрипта, не только check()."""
+    out = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "1cv8 DESIGNER /DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert out.returncode == 1, out
+    assert "[ошибка K007]" in out.stdout, out.stdout
+
+
+def test_proven_misparse_error_is_addressable_by_code():
+    """K004 — тот же принцип для блокировки PROVEN_TAIL_MISPARSE."""
+    out = subprocess.run(
+        [sys.executable, str(SCRIPT), line_with("/DumpCfgToFile")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert out.returncode == 1, out
+    assert "[ошибка K004]" in out.stdout, out.stdout
+
+
+def test_foreign_tool_note_is_addressable_by_code():
+    """K017 — то же для границы компетенции (Д-17)."""
+    out = subprocess.run(
+        [sys.executable, str(SCRIPT), FOREIGN],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert out.returncode == 0, out
+    assert "[внимание K017]" in out.stdout, out.stdout

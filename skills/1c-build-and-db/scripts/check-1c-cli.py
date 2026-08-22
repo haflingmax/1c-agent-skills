@@ -114,6 +114,52 @@ PLACEHOLDERS = [
 ]
 
 
+# Н-14: диагностики печатались как «[ошибка]»/«[внимание]» плюс русское
+# предложение, без идентификатора — ни сослаться, ни процитировать без
+# риска: правка текста незаметно ломала тест или доказательство, которые
+# цеплялись за обрывок прозы (tests/test_check_1c_cli.py, до этой правки —
+# «не задана база», «режим запуска», «вне компетенции», «не первым»).
+# Код — короткая устойчивая метка ПЕРЕД текстом, по образцу линтеров:
+# «[ошибка K007] …», «[внимание K008] …» — main() печатает код и текст
+# раздельно, см. format_diag(). Уровень (ошибка или внимание) в код не
+# входит и не назначается тут отдельным полем: он и раньше, и теперь —
+# результат прогона (PROVEN_TAIL_MISPARSE и правило 11 архитектуры), а не
+# настройка с умолчанием.
+K_EMPTY_COMMAND = "K001"       # пустая команда
+K_NO_MODE = "K002"             # не указан режим запуска
+K_UNKNOWN_KEY = "K003"         # ключа нет в документации вовсе
+K_PROVEN_MISPARSE = "K004"     # доказанно неверный разбор хвоста (PROVEN_TAIL_MISPARSE)
+K_WRONG_MODE_BLOCK = "K005"    # ключ режима DESIGNER вызван не в DESIGNER
+K_PLACEHOLDER = "K006"         # заглушка вместо настоящего значения
+K_NO_BASE = "K007"             # не задана база
+K_GLUED_GUESS = "K008"         # хвост разобран как легитимное слитное значение
+K_UNPROVEN_TAIL = "K009"       # хвост-коллизия, платформа не проверялась
+K_AT_NOT_FIRST = "K010"        # /@ указан не первым ключом
+K_WRONG_MODE_NOTE = "K011"     # ключ чужого режима принят в пакетном запуске
+K_OPT_BEFORE_KEY = "K012"      # опция указана до первого ключа
+K_UNKNOWN_OPT = "K013"         # опция не принадлежит текущему ключу
+K_NO_BATCH_FLAG = "K014"       # нет /DisableStartupDialogs
+K_NO_OUT_OR_RESULT = "K015"    # нет /Out и /DumpResult у деструктивной операции
+K_UPDATEDBCFG_STATIC = "K016"  # /UpdateDBCfg без -Dynamic
+K_FOREIGN_TOOL = "K017"        # инструмент вне компетенции проверяльщика
+
+CODE_PREFIX = re.compile(r"^(K\d{3})\s+(.*)$", re.S)
+
+
+def format_diag(level, text):
+    """«[ошибка K007] текст» — код и уровень раздельно, как у линтеров.
+
+    text приходит из problems()/notes() с кодом уже внутри строки (первое
+    слово) — так значения problems()/notes() остаются простыми строками,
+    и старые тесты, цепляющиеся за обрывок прозы через `in`, не ломаются:
+    код добавлен префиксом, а не заменил текст.
+    """
+    m = CODE_PREFIX.match(text)
+    if m:
+        return "[%s %s] %s" % (level, m.group(1), m.group(2))
+    return "[%s] %s" % (level, text)
+
+
 def load_catalog():
     if not CATALOG.exists():
         print("нет файла %s" % CATALOG.name)
@@ -219,16 +265,16 @@ def check(line, catalog):
     notes = []
 
     if not args:
-        return ["пустая команда"], []
+        return ["%s пустая команда" % K_EMPTY_COMMAND], []
 
     tool = Path(args[0].strip('"')).name.lower()
     if not tool.startswith("1cv8"):
         # Не приговор команде, а граница компетенции: замечание с кодом возврата 0.
         # Иначе проверяльщик запрещал бы ibcmd, который рекомендует наш же рецепт
         # (references/load-configuration.md, шаг 3).
-        return [], ["%s вне компетенции проверяльщика: он знает только команды 1cv8. "
+        return [], ["%s %s вне компетенции проверяльщика: он знает только команды 1cv8. "
                     "Состав ключей ibcmd, rac и ras сверяется по документации вручную"
-                    % args[0]]
+                    % (K_FOREIGN_TOOL, args[0])]
 
     mode = None
     for a in args[1:4]:
@@ -238,8 +284,8 @@ def check(line, catalog):
             break
     if mode is None:
         problems.append(
-            "не указан режим запуска: после имени программы ожидается "
-            "DESIGNER, ENTERPRISE или CREATEINFOBASE")
+            "%s не указан режим запуска: после имени программы ожидается "
+            "DESIGNER, ENTERPRISE или CREATEINFOBASE" % K_NO_MODE)
 
     used = []
     for i, a in enumerate(args):
@@ -248,7 +294,7 @@ def check(line, catalog):
         name = a.split(":", 1)[0]
         canon = known_key(name, keys)
         if canon is None:
-            problems.append("%s — такого ключа нет в документации 8.3.27" % a)
+            problems.append("%s %s — такого ключа нет в документации 8.3.27" % (K_UNKNOWN_KEY, a))
             continue
         if canon.lower() == name.lower():
             used.append((canon, i))
@@ -268,10 +314,10 @@ def check(line, catalog):
             # использование ключа, а разбор, который сам проверенно
             # приводит не туда или в отказ. Правило 11 требует блокировки.
             problems.append(
-                "%s — такого ключа нет в документации 8.3.27; платформа "
+                "%s %s — такого ключа нет в документации 8.3.27; платформа "
                 "разберёт совпадение как %s с хвостом «%s», отправленным "
                 "не в значение ключа, а в позиционный аргумент — проверено "
-                "%s" % (a, canon, tail, PROVEN_TAIL_MISPARSE[canon]))
+                "%s" % (K_PROVEN_MISPARSE, a, canon, tail, PROVEN_TAIL_MISPARSE[canon]))
         elif keys[canon].get("glued"):
             # Хвост — легитимное слитное значение (/Lru = /L + «ru»).
             # Молча пропускать нельзя: так же устроены и выдуманные
@@ -282,9 +328,9 @@ def check(line, catalog):
             # нулевым кодом возврата.
             used.append((canon, i))
             notes.append(
-                "%s — точно такого ключа в документации 8.3.27 нет; разобран "
+                "%s %s — точно такого ключа в документации 8.3.27 нет; разобран "
                 "как %s со значением «%s». Если имелся в виду другой ключ, "
-                "он выдуман" % (a, canon, tail))
+                "он выдуман" % (K_GLUED_GUESS, a, canon, tail))
         else:
             # Не glued, и своего прогона для этого конкретного ключа нет
             # (третий раунд ревью, Н-02: /S<адрес> и ещё около полутора
@@ -296,14 +342,14 @@ def check(line, catalog):
             # где не проверено.
             used.append((canon, i))
             notes.append(
-                "%s — точно такого ключа в документации 8.3.27 нет; разобран "
+                "%s %s — точно такого ключа в документации 8.3.27 нет; разобран "
                 "как %s с хвостом «%s» в значении. Поведение платформы для "
                 "этого конкретного совпадения запуском не проверялось "
                 "(проверено только для %s) — может оказаться и штатной "
                 "работой (как /Lru), и тихой порчей результата (как "
                 "/DumpCfgToFile); прежде чем полагаться на эту команду, "
                 "стоит проверить запуском" % (
-                    a, canon, tail, ", ".join(sorted(PROVEN_TAIL_MISPARSE))))
+                    K_UNPROVEN_TAIL, a, canon, tail, ", ".join(sorted(PROVEN_TAIL_MISPARSE))))
 
     if used and any(n == "/@" for n, _ in used) and used[0][0] != "/@":
         # Раздел 7.3.11: «Команда /@ должна быть первой или единственной
@@ -313,10 +359,10 @@ def check(line, catalog):
         # это предупреждение, а не блокировка (правило 11: блокировать
         # можно только доказанно неверное, а это не проверено запуском).
         notes.append(
-            "/@ указан не первым ключом — раздел 7.3.11 руководства "
+            "%s /@ указан не первым ключом — раздел 7.3.11 руководства "
             "администратора называет поведение в этом случае неопределённым "
             "(содержимое файла должно было заменить собой всю командную "
-            "строку целиком)")
+            "строку целиком)" % K_AT_NOT_FIRST)
 
     for name, _ in used:
         # modes — список: ключ, документированный в нескольких разделах
@@ -331,15 +377,15 @@ def check(line, catalog):
             # Проверено запуском: ENTERPRISE /F <база> /LoadCfg <файл> не грузит
             # ничего — платформа открывает сеанс и не возвращает управление
             # (убит по таймауту 60 с), журнал пуст, /DumpResult не создан.
-            problems.append(where + ": пакетную операцию конфигуратора вне режима "
-                                    "DESIGNER выполнять некому — платформа открывает "
-                                    "сеанс и не завершается")
+            problems.append("%s %s: пакетную операцию конфигуратора вне режима "
+                             "DESIGNER выполнять некому — платформа открывает "
+                             "сеанс и не завершается" % (K_WRONG_MODE_BLOCK, where))
         else:
             # Обратное направление запуском опровергнуто: DESIGNER /F <база>
             # /UsePrivilegedMode /DumpCfg отработал, файл создан и совпал по
             # размеру с обычной выгрузкой. Блокировать работающее нельзя.
-            notes.append(where + "; в пакетном запуске платформа такой ключ приняла "
-                                 "и операцию выполнила — проверь, нужен ли он здесь")
+            notes.append("%s %s; в пакетном запуске платформа такой ключ приняла "
+                         "и операцию выполнила — проверь, нужен ли он здесь" % (K_WRONG_MODE_NOTE, where))
 
     # опции принадлежат ближайшему предшествующему ключу
     owners = {i: name for name, i in used}
@@ -351,7 +397,7 @@ def check(line, catalog):
         if not a.startswith("-") or len(a) < 2 or a[1].isdigit():
             continue
         if current is None:
-            notes.append("%s — опция указана до первого ключа" % a)
+            notes.append("%s %s — опция указана до первого ключа" % (K_OPT_BEFORE_KEY, a))
             continue
         allowed = keys[current].get("opts") or []
         if allowed and not any(matches_option(a, o) for o in allowed):
@@ -360,29 +406,29 @@ def check(line, catalog):
             # Не запрет: проверено запуском, что чужая опция команду не ломает —
             # DESIGNER /F <база> /DumpCfg <файл> -Format Hierarchical отработал,
             # файл создан и побайтно того же размера, что и без опции.
-            notes.append("%s не является опцией %s%s" % (a, current, hint))
+            notes.append("%s %s не является опцией %s%s" % (K_UNKNOWN_OPT, a, current, hint))
 
     # заглушки ищем по всей строке: <каталог базы> разрезается пробелом на два слова
     for pat, why in PLACEHOLDERS:
         m = pat.search(line)
         if m:
-            problems.append("«%s» — %s; значение запрашивается у человека, "
-                            "а не выдумывается" % (m.group(0), why))
+            problems.append("%s «%s» — %s; значение запрашивается у человека, "
+                            "а не выдумывается" % (K_PLACEHOLDER, m.group(0), why))
 
     names = {n for n, _ in used}
 
     if mode == "DESIGNER" and names and BATCH_REQUIRED not in names:
         notes.append(
-            "нет %s — пакетный запуск откроет диалог и остановится" % BATCH_REQUIRED)
+            "%s нет %s — пакетный запуск откроет диалог и остановится" % (K_NO_BATCH_FLAG, BATCH_REQUIRED))
 
     if names & DESTRUCTIVE and "/Out" not in names and "/DumpResult" not in names:
         notes.append(
-            "нет /Out и /DumpResult — при сбое не останется ни журнала, ни кода возврата")
+            "%s нет /Out и /DumpResult — при сбое не останется ни журнала, ни кода возврата" % K_NO_OUT_OR_RESULT)
 
     if "/UpdateDBCfg" in names and not any(a.lower().startswith("-dynamic") for a in args):
         notes.append(
-            "/UpdateDBCfg без -Dynamic: решение о динамическом обновлении "
-            "принимается заранее, а не оставляется платформе")
+            "%s /UpdateDBCfg без -Dynamic: решение о динамическом обновлении "
+            "принимается заранее, а не оставляется платформе" % K_UPDATEDBCFG_STATIC)
 
     # Сверяемся с каноническими именами из used, а не с началом строки: иначе
     # /f строчными и /IBConnectionString считаются незаданной базой. Блокировка
@@ -390,7 +436,7 @@ def check(line, catalog):
     # «Неопределена информационная база», файла нет.
     if not (names & BASE_KEYS) and mode != "CREATEINFOBASE":
         problems.append(
-            "не задана база: нужен /F, /S, /IBName или /IBConnectionString")
+            "%s не задана база: нужен /F, /S, /IBName или /IBConnectionString" % K_NO_BASE)
 
     return problems, notes
 
@@ -414,9 +460,9 @@ def main():
     problems, notes = check(line, load_catalog())
 
     for p in problems:
-        print("[ошибка] %s" % p)
+        print(format_diag("ошибка", p))
     for n in notes:
-        print("[внимание] %s" % n)
+        print(format_diag("внимание", n))
     if not problems and not notes:
         print("замечаний нет")
     return 1 if problems else 0

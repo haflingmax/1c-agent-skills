@@ -9,8 +9,12 @@ New-Item -ItemType Directory -Force $Dir | Out-Null
 $log = Join-Path $Dir 'run.log'
 switch ($Env) {
   'kilo' {
+    # М-17/М-18: --format json даёт структурный журнал (raw JSON events),
+    # тот же класс сигнала, что stream-json у Claude — проверено запуском
+    # 2026-08-23, событие {"type":"tool_use",...,"part":{"tool":"skill",
+    # "state":{"input":{"name":"developing-1c-configurations"}}}}.
     $exe = "$env:USERPROFILE\.vscode\extensions\kilocode.kilo-code-7.4.22\bin\kilo.exe"
-    & $exe run --auto --dir $Dir $Prompt *> $log
+    & $exe run --auto --dir $Dir --format json $Prompt *> $log
   }
   'claude' {
     # stream-json + verbose: обычный текстовый вывод не показывает вызов инструментов,
@@ -45,7 +49,33 @@ if ($Env -eq 'claude') {
       }
     }
   }
+} elseif ($Env -eq 'kilo') {
+  # М-17/М-18: раньше — подстрочный поиск имени навыка по всему текстовому
+  # журналу, засчитывавший любое упоминание (в том числе в прозе модели без
+  # вызова) — прибор сам объявлен негодным (docs/reviews/2026-08-23-core-review.md).
+  # Теперь читаем структурный признак из --format json: событие tool_use с
+  # part.tool == "skill" и именем навыка в part.state.input.name — тот же
+  # класс сигнала, что и tool_use "Skill" у Claude. Имя может прийти как
+  # голое ("developing-1c-configurations") либо с префиксом плагина
+  # ("1c-agent-skills:developing-1c-configurations", О-3 в docs/plan.md) —
+  # проверяется совпадение по хвосту, а не по точному имени.
+  $navyk = $false
+  $questions = 0
+  foreach ($line in ($txt -split "`r?`n")) {
+    $line = $line.Trim()
+    if (-not $line) { continue }
+    try { $evt = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+    if ($evt.type -eq 'tool_use' -and $evt.part.tool -eq 'skill') {
+      $name = [string]$evt.part.state.input.name
+      if ($name -match '(^|:)(developing-1c-configurations|1c-build-and-db)$') { $navyk = $true }
+    }
+    if ($evt.type -eq 'text' -and $evt.part.text) {
+      $questions += ([regex]::Matches($evt.part.text, '\?')).Count
+    }
+  }
 } else {
+  # codex: структурный журнал для него не проверялся (только Kilo и Claude
+  # — М-18 называет именно их), остаётся прежний подстрочный поиск.
   $navyk = [bool]($txt -match 'developing-1c-configurations|1c-build-and-db')
   $questions = ([regex]::Matches($txt, '\?')).Count
 }

@@ -189,15 +189,30 @@ foreach ($envName in $Envs) {
           $logText = if ($obj.Журнал -and (Test-Path $obj.Журнал)) {
             Get-Content $obj.Журнал -Raw -Encoding Unicode -ErrorAction SilentlyContinue
           } else { '' }
-          # Сигнатура Д-11 из инцидента задачи 2 (0205fbda): модель зовёт
-          # skills/read_mcp_resource и получает unknown MCP server 'skills'.
-          if ($logText -match "unknown MCP server 'skills'|read_mcp_resource|skills/read_mcp_resource") {
+          # М-17: имя MCP-сервера, который путает Codex, от прогона к прогону
+          # разное (было замечено 'skills', 'r1', 'codex_apps' — docs/plan.md,
+          # Д-11) — жёстко зашитое 'skills' не ловило ни один из двух реальных
+          # вариантов свидетельства (docs/evidence/2026-08-22-acceptance.md:
+          # 124-125): ни r1/list_mcp_resources → unknown MCP server 'r1', ни
+          # codex_apps/read_mcp_resource → resources/read failed for codex_apps.
+          # Признак структурный, а не по имени сервера: (list|read)_mcp_resource
+          # ловит вызов независимо от имени, unknown MCP server и
+          # resources/read failed ловят соответствующие отказы независимо от
+          # имени. Проверено обеими строками свидетельства: до правки — False
+          # на обеих, после — True на обеих.
+          if ($logText -match "(list|read)_mcp_resource|unknown MCP server|resources/read failed") {
             $codexFails++
             Write-Line @{ event = 'codex-fail'; pair = $pair.Id; pol = $pol; count = $codexFails; time = (Get-Date).ToString('o') }
             if ($codexFails -ge $CodexFailLimit) {
               $codexSkipped = $true
               Write-Line @{ event = 'codex-circuit-open'; afterFails = $codexFails; time = (Get-Date).ToString('o') }
             }
+          } else {
+            # М-17: счётчик обещан «подряд» (комментарий у $CodexFailLimit),
+            # но нигде не обнулялся — три несмежные неудачи среди восьми
+            # прогонов уже открывали автомат, хотя ни разу не шли подряд.
+            # Обнуляется только здесь: удачный прогон Codex без сигнатуры Д-11.
+            $codexFails = 0
           }
         }
       } catch {
