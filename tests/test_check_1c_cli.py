@@ -251,3 +251,40 @@ def test_catalog_completeness_against_source():
     assert isinstance(keys["/DumpResult"]["modes"], list), "режим обязан быть списком"
     assert len(keys["/DumpResult"]["modes"]) >= 2, (
         "/DumpResult описан в двух режимах: 7.2.3 и 7.4.17")
+
+
+AT_KEY_NOT_FIRST = ("1cv8 DESIGNER /F d:/base /DumpCfg d:/x.cf /@ d:/cmd.txt "
+                    "/DisableStartupDialogs /Out d:/l.log")
+
+
+def test_at_key_not_first_only_warns():
+    """Н-08 (найдено повторным ревью): /@ добавили в каталог, но не хватало
+    правила позиции — команда с /@ не первым ключом проходила без единого
+    замечания, хотя документация называет это неопределённым поведением.
+
+    Раздел 7.3.11 руководства администратора, дословно: «Команда /@ должна
+    быть первой или единственной командой командной строки запуска
+    приложения. Если команда /@ указана не первой ‑ поведение является
+    неопределенным.» «Неопределено» — не «запрещено»: платформой это не
+    проверено запуском, поэтому правило 11 архитектуры («блокировать только
+    доказанно неверное») требует предупреждения, а не ошибки.
+    """
+    assert problems(AT_KEY_NOT_FIRST) == [], problems(AT_KEY_NOT_FIRST)
+    out = notes(AT_KEY_NOT_FIRST)
+    assert any("/@" in n and "не первым" in n for n in out), out
+    assert exit_code(AT_KEY_NOT_FIRST) == 0
+
+
+@pytest.mark.parametrize("line", [
+    # /@ — первый /-ключ команды (перед ним только слово режима, не ключ).
+    "1cv8 DESIGNER /@ d:/cmd.txt /F d:/base /DisableStartupDialogs",
+    # /@ — единственный ключ команды вообще (условие «или единственной»).
+    "1cv8 /@ d:/cmd.txt",
+])
+def test_at_key_first_is_clean(line):
+    """Две законные команды с /@ первым (или единственным) ключом — правило
+    не должно заводить новую блокировку и не должно предупреждать про
+    позицию: по разделу 7.3.11 это ровно тот случай, который документация
+    разрешает.
+    """
+    assert not any("/@" in n and "не первым" in n for n in notes(line)), notes(line)
