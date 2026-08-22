@@ -166,11 +166,15 @@ def check(line, catalog):
             problems.append("%s — такого ключа нет в документации 8.3.27" % a)
 
     for name, _ in used:
-        km = keys[name].get("mode")
-        if not (mode and km in MODE_WORDS and km != mode):
+        # modes — список: ключ, документированный в нескольких разделах
+        # (например /DumpResult — в 7.2.3 и 7.4.17), несёт оба. Пустой
+        # список — «общий»: ключ не ограничен по режиму вовсе.
+        restricted = [m for m in (keys[name].get("modes") or []) if m in MODE_WORDS]
+        if not (mode and restricted and mode not in restricted):
             continue
-        where = "%s работает в режиме %s, а команда запущена как %s" % (name, km, mode)
-        if km == "DESIGNER":
+        where = "%s работает в режиме %s, а команда запущена как %s" % (
+            name, "/".join(restricted), mode)
+        if "DESIGNER" in restricted:
             # Проверено запуском: ENTERPRISE /F <база> /LoadCfg <файл> не грузит
             # ничего — платформа открывает сеанс и не возвращает управление
             # (убит по таймауту 60 с), журнал пуст, /DumpResult не создан.

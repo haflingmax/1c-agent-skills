@@ -234,3 +234,20 @@ def test_wrong_mode_still_blocks():
     """
     assert any("режиме" in p for p in problems(
         "1cv8 ENTERPRISE /F d:/base /LoadCfg d:/n.cf /Out d:/l.log"))
+
+
+def test_catalog_completeness_against_source():
+    """Н-07, Н-08: состав каталога сверяется с приложением 7 программно.
+
+    Источник — _its/cmdline/its-pril7-full.json. Если выгрузки нет на машине,
+    тест пропускается: каталог _its/ под gitignore и у пользователя его нет.
+    """
+    import pytest
+    src = ROOT / "_its" / "cmdline" / "its-pril7-full.json"
+    if not src.exists():
+        pytest.skip("выгрузка ИТС недоступна: каталог _its/ под gitignore")
+    keys = CATALOG["ключи"]
+    assert "/@" in keys, "документированный ключ /@ (раздел 7.3.11) отсутствует"
+    assert isinstance(keys["/DumpResult"]["modes"], list), "режим обязан быть списком"
+    assert len(keys["/DumpResult"]["modes"]) >= 2, (
+        "/DumpResult описан в двух режимах: 7.2.3 и 7.4.17")
