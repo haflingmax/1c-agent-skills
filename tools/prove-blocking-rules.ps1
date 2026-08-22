@@ -12,7 +12,7 @@ function Run1C($name, $keys) {
   $cf  = Join-Path $Work "$name.cf"
   Remove-Item $log,$rc,$cf -ErrorAction SilentlyContinue
   $a = @('DESIGNER','/F',$Base) + $keys + @($cf,'/DisableStartupDialogs','/Out',$log,'/DumpResult',$rc)
-  $p = Start-Process -FilePath $Exe -ArgumentList $a -Wait -PassThru -NoNewWindow
+  $p = Start-Process -FilePath $Exe -ArgumentList $a -Wait -PassThru -NoNewWindow -WorkingDirectory $Work
   [pscustomobject]@{
     Имя        = $name
     КодВыхода  = $p.ExitCode
