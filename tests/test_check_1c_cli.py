@@ -52,12 +52,19 @@ def test_d13_glued_value_key_still_works():
                     "/DisableStartupDialogs /Out d:/l.log") == []
 
 
-# Пять выдуманных ключей, каждый из которых начинается со слитного: /L, /P, /N,
-# /O, /WSA. До правки все пятеро проходили молча с кодом 0 — то есть главное
+# Четыре выдуманных ключа, каждый из которых начинается со слитного: /P, /N,
+# /O, /WSA. До правки все проходили молча с кодом 0 — то есть главное
 # обещание проверяльщика («ловит выдуманный ключ») держалось только для ключей,
 # не начинающихся со слитного.
+#
+# /LoadCfgFromFile раньше был в этом списке пятым, потому что старый known_key
+# искал совпадение только среди двенадцати glued-ключей и ложно резолвил его
+# в /L. Н-02: платформа берёт самое длинное совпадение среди ВСЕХ ключей —
+# для /LoadCfgFromFile это /LoadCfg, не glued, и хвост «FromFile» уходит не в
+# значение, а в позиционный аргумент. Это уже проверено запуском (платформа
+# отвечает кодом 1, «Файл не обнаружен»), поэтому теперь у него другая пара —
+# см. INVENTED_LONGEST_MATCH_BLOCKS и test_longest_match_off_glued_prefix_blocks.
 INVENTED_ON_GLUED = [
-    ("/LoadCfgFromFile", "/L"),
     ("/Publish", "/P"),
     ("/NewConfiguration", "/N"),
     ("/OptimizeDatabase", "/O"),
@@ -101,6 +108,44 @@ def test_invented_key_off_glued_prefix_still_blocks():
     """Защита точным совпадением на месте: /DumpCfgToFile — ошибка и код 1."""
     line = line_with("/DumpCfgToFile")
     assert any("DumpCfgToFile" in p for p in problems(line)), problems(line)
+    assert exit_code(line) == 1
+
+
+def test_known_key_matches_platform_longest_match():
+    """Н-02: платформа берёт самое длинное совпадение среди ВСЕХ ключей.
+
+    Проверено запуском: /LoadCfgFromFile платформа разбирает как /LoadCfg
+    с позиционным аргументом FromFile, а не как /L со значением.
+    """
+    keys = CATALOG["ключи"]
+    assert mod.known_key("/LoadCfgFromFile", keys) == "/LoadCfg"
+    assert mod.known_key("/DumpCfgToFile", keys) == "/DumpCfg"
+    assert mod.known_key("/Lru", keys) == "/L"
+
+
+# Оба резолвятся в НЕ-glued ключ (/LoadCfg, /DumpCfg): хвост уходит не в
+# значение, а в позиционный аргумент, который платформа отправляет сама.
+# Проверено запуском дважды и оба раза неверно: /DumpCfgToFile выгружает
+# конфигурацию не в тот файл — тихая порча (docs/evidence/
+# 2026-08-22-blocking-rules.md), /LoadCfgFromFile падает кодом 1, «Файл не
+# обнаружен» (шаг 1 задачи 3, .superpowers/sdd/2026-08-23-core-remediation/
+# task-3-brief.md). В обоих случаях платформа доказанно не делает того, что
+# написано в команде — правило 11 требует блокировки, а не предупреждения.
+INVENTED_LONGEST_MATCH_BLOCKS = [
+    ("/LoadCfgFromFile", "/LoadCfg"),
+    ("/DumpCfgToFile", "/DumpCfg"),
+]
+
+
+@pytest.mark.parametrize("key,canon", INVENTED_LONGEST_MATCH_BLOCKS)
+def test_longest_match_off_glued_prefix_blocks(key, canon):
+    """Н-02: хвост-позиционный-аргумент — это не то же самое, что
+    хвост-значение (test_glued_prefix_invented_key_warns_and_does_not_block),
+    и различить их теперь можно: по признаку glued резолвнутого ключа.
+    """
+    line = line_with(key)
+    out = problems(line)
+    assert any(key in p and canon in p for p in out), out
     assert exit_code(line) == 1
 
 
@@ -165,12 +210,17 @@ def test_d17_foreign_tool_returns_zero():
 def test_c1_ib_connection_string_sets_the_base():
     """/IBConnectionString задаёт базу наравне с /F.
 
+    М-16: докстрока и проверка раньше расходились — докстрока ссылалась на
+    запуск DESIGNER + /DumpCfg, а сама проверка гоняла ENTERPRISE без
+    /DumpCfg вовсе, то есть заявляла одно, а проверяла другое.
+
     Проверено запуском на 8.3.27.2325: DESIGNER /IBConnectionString
     "File=D:/1C/base/trade;" /DumpCfg создал файл того же размера, что и
-    выгрузка через /F (docs/evidence/2026-08-22-blocking-rules.md).
+    выгрузка через /F (docs/evidence/2026-08-22-blocking-rules.md, случай
+    «строка-соединения»). Теперь проверка гоняет ровно этот запуск.
     """
-    assert problems('1cv8 ENTERPRISE /IBConnectionString "File=d:/base;" '
-                    "/DisableStartupDialogs") == []
+    assert problems('1cv8 DESIGNER /IBConnectionString "File=d:/base;" '
+                    "/DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log") == []
 
 
 def test_c1_lowercase_base_key_is_allowed():
@@ -189,6 +239,23 @@ def test_no_base_still_blocks():
 def test_no_mode_still_blocks():
     """Неуказанный режим остаётся ошибкой: «Неопределен режим запуска», код 1."""
     out = problems("1cv8 /F d:/base /DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log")
+    assert any("режим запуска" in p for p in out), out
+
+
+def test_config_word_is_not_a_recognized_mode():
+    """М-14: CONFIG был в MODE_WORDS, хотя не документирован ни как режим
+    запуска 8.3.27, ни в тексте ошибки, ни у единого ключа каталога.
+
+    Раздел 7.3.3 руководства администратора называет CONFIG, но только как
+    замену, которую платформа выполняет САМА при автоподборе версии для
+    запуска настоящего 1С:Предприятия 8.0 (/AppAutoCheckVersion) — это
+    внутренний механизм для другого исполняемого файла, а не режим запуска,
+    который стоит писать в команде для 8.3.27. Раньше CONFIG в MODE_WORDS
+    молча гасил «не указан режим запуска» там, где такого режима у 8.3.27
+    нет вовсе.
+    """
+    out = problems("1cv8 CONFIG /F d:/base /DumpCfg d:/x.cf "
+                   "/DisableStartupDialogs /Out d:/l.log")
     assert any("режим запуска" in p for p in out), out
 
 
@@ -288,3 +355,17 @@ def test_at_key_first_is_clean(line):
     разрешает.
     """
     assert not any("/@" in n and "не первым" in n for n in notes(line)), notes(line)
+
+
+@pytest.mark.parametrize("flag", ["--help", "-h"])
+def test_help_flag_prints_docstring_and_returns_zero(flag):
+    """М-25: скрипт не отвечал на --help вовсе — argv[0] == "--help" уходил
+    как обычная команда на проверку, tool.startswith("1cv8") давал False, и
+    вместо помощи печаталось «--help вне компетенции проверяльщика».
+    """
+    out = subprocess.run([sys.executable, str(SCRIPT), flag],
+                         capture_output=True, text=True,
+                         encoding="utf-8", errors="replace")
+    assert out.returncode == 0, out
+    assert "вне компетенции" not in out.stdout, out.stdout
+    assert "Проверка командной строки" in out.stdout, out.stdout
