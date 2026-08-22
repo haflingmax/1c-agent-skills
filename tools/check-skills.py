@@ -5,6 +5,8 @@ https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
 https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
 
 Возвращает ненулевой код при любом нарушении, поэтому годится для CI.
+Предупреждения ([внимание]) в код возврата не входят — правило 11 набора:
+блокировать только то, что неверно при любых обстоятельствах.
 
     python tools/check-skills.py            # проверить все навыки
     python tools/check-skills.py --verbose  # показать и то, что прошло
@@ -46,16 +48,53 @@ WHEN_TO_USE = re.compile(r"применяется,?\s+когда|использ�
 MAX_NAME = 64
 MAX_DESC = 1024
 MAX_BODY_LINES = 500
-# 20000 было выведено из английского счёта «~4 знака на токен» (находки М-04,
-# М-15, М-23 docs/reviews/2026-08-23-core-review.md), а тела навыков целиком
-# кириллические. Кириллица токенизируется плотнее: живой замер локальным BPE-
-# токенизатором Llama (offline-суррогат, точного офлайн-токенизатора Claude
-# нет) на обоих SKILL.md репозитория дал ~3.0 знака/токен против ~5.45 у
-# контрольного английского текста того же объёма — воспроизвести:
-#   python -c "from tokenizers import Tokenizer; ..." (см. docs/reviews).
-# Отсюда порог для «до 5 тысяч токенов» на кириллице — 5000×3 = 15000 знаков,
-# а не 20000.
-MAX_BODY_CHARS = 15000   # ориентир для «до 5 тысяч токенов» (кириллица, ~3 знака/токен)
+
+# Было: MAX_BODY_CHARS = 20000, глобальный порог в знаках, подписанный как
+# «ориентир для 5 тысяч токенов» на английском счёте «~4 знака/токен».
+# Пересчёт под кириллицу (задача 1, находки М-04/М-15/М-23) заменил его на
+# MAX_BODY_CHARS = 15000 — но порог остался ГЛОБАЛЬНЫМ числом знаков, а
+# конверсия знаки→токены зависит от языка тела. На чужом английском навыке
+# (superpowers 6.3.0, skills/brainstorming/SKILL.md, 15119 знаков) это
+# заблокировало законное: 15119 английских знаков — это ~2750 токенов
+# (вдвое меньше цели 5000), а не превышение. Ревью задачи 1 поймало это как
+# Critical: новая блокировка законного недопустима (правило 11).
+#
+# Поэтому порог больше не задан в знаках. Оценка токенов считается по
+# фактическому составу тела — доле кириллицы среди букв — и сравнивается с
+# целью в 5000 токенов напрямую. Коэффициенты «знаков на токен» — из живого
+# замера локальным BPE-токенизатором Llama (offline-суррогат: точного
+# офлайн-токенизатора Claude в системе нет), воспроизвести:
+#   from tokenizers import Tokenizer
+#   tok = Tokenizer.from_file(<локальный tokenizer.json>)
+#   len(text) / len(tok.encode(text).ids)
+# Результат на обоих SKILL.md репозитория (кириллица) — ~3.0 знака/токен;
+# на контрольном английском тексте того же объёма — ~5.45 знака/токен.
+CYR_CHARS_PER_TOKEN = 3.0
+LATIN_CHARS_PER_TOKEN = 5.45
+BODY_TOKEN_BUDGET = 5000   # ориентир Anthropic: «до 5 тысяч токенов» на тело SKILL.md
+
+CYRILLIC_LETTER = re.compile(r"[а-яёА-ЯЁ]")
+LATIN_LETTER = re.compile(r"[A-Za-z]")
+
+
+def estimate_body_tokens(body):
+    """Оценивает число токенов тела по смеси кириллицы/латиницы в нём.
+
+    Линейная интерполяция между двумя измеренными коэффициентами «знаков на
+    токен» по доле кириллицы среди букв — не глобальная константа. Если в
+    теле нет ни кириллицы, ни латиницы (голый код, таблицы чисел), оценка
+    ненадёжна и функция возвращает None — вызывающий код обязан в этом
+    случае ничего не проверять, а не подставлять произвольный коэффициент.
+    """
+    cyr = len(CYRILLIC_LETTER.findall(body))
+    lat = len(LATIN_LETTER.findall(body))
+    letters = cyr + lat
+    if letters == 0:
+        return None
+    cyr_share = cyr / letters
+    chars_per_token = (cyr_share * CYR_CHARS_PER_TOKEN
+                        + (1 - cyr_share) * LATIN_CHARS_PER_TOKEN)
+    return len(body) / chars_per_token
 
 
 def frontmatter(text):
@@ -67,13 +106,19 @@ def frontmatter(text):
 
 
 def check(skill_md):
-    """Возвращает список нарушений для одного навыка."""
+    """Возвращает (errors, warnings) для одного навыка.
+
+    errors — нарушения, дающие код возврата 1 (правило 11: только то, что
+    неверно при любых обстоятельствах). warnings — предупреждения с нулевым
+    кодом, повод перечитать, а не запрет; сюда идёт всё, что построено на
+    оценке, а не на факте о файле (см. estimate_body_tokens)."""
     folder = skill_md.parent.name
     text = skill_md.read_text(encoding="utf-8")
     fm, body = frontmatter(text)
     bad = []
+    warn = []
     if fm is None:
-        return ["нет фронтматтера"]
+        return ["нет фронтматтера"], []
 
     name = fm.get("name", "")
     desc = fm.get("description", "")
@@ -108,8 +153,16 @@ def check(skill_md):
     lines = body.count("\n")
     if lines > MAX_BODY_LINES:
         bad.append("тело %d строк, предел %d" % (lines, MAX_BODY_LINES))
-    if len(body) > MAX_BODY_CHARS:
-        bad.append("тело %d знаков, ориентир %d" % (len(body), MAX_BODY_CHARS))
+
+    # Оценка токенов — не факт о файле, а приближение по составу символов
+    # (см. комментарий у estimate_body_tokens). Превышение оценки не «неверно
+    # при любых обстоятельствах» (правило 11), поэтому только предупреждение,
+    # даже когда оценка велика с запасом.
+    est = estimate_body_tokens(body)
+    if est is not None and est > BODY_TOKEN_BUDGET:
+        warn.append("тело ~%d токенов по оценке (%d знаков), ориентир %d — "
+                     "оценка приблизительна, не блокирует"
+                     % (round(est), len(body), BODY_TOKEN_BUDGET))
 
     extra = set(fm) - SPEC_FIELDS
     if extra:
@@ -146,7 +199,7 @@ def check(skill_md):
             bad.append("цепочка ссылок глубже одного уровня: %s → %s"
                         % (link, ", ".join(deeper)))
 
-    return bad
+    return bad, warn
 
 
 def main():
@@ -160,18 +213,23 @@ def main():
         return 1
 
     total_bad = 0
+    total_warn = 0
     for skill_md in found:
-        bad = check(skill_md)
+        bad, warn = check(skill_md)
         total_bad += len(bad)
-        if bad:
+        total_warn += len(warn)
+        if bad or warn:
             print("[!] %s" % skill_md.parent.name)
             for b in bad:
                 print("      %s" % b)
+            for w in warn:
+                print("      [внимание] %s" % w)
         elif verbose:
             print("[ok] %s" % skill_md.parent.name)
 
     print()
-    print("навыков проверено: %d, нарушений: %d" % (len(found), total_bad))
+    print("навыков проверено: %d, нарушений: %d, предупреждений: %d"
+          % (len(found), total_bad, total_warn))
     return 1 if total_bad else 0
 
 
