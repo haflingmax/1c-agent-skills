@@ -4,6 +4,7 @@
 Запуск: python -m pytest tests/test_check_1c_cli.py -v
 """
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,6 +21,15 @@ CATALOG = mod.load_catalog()
 
 def problems(line):
     return mod.check(line, CATALOG)[0]
+
+
+def notes(line):
+    return mod.check(line, CATALOG)[1]
+
+
+def exit_code(line):
+    """Код возврата настоящего запуска: навык обещает «0 — можно запускать»."""
+    return subprocess.run([sys.executable, str(SCRIPT), line]).returncode
 
 
 def test_d13_invented_key_is_rejected():
@@ -71,11 +81,81 @@ def test_d16_lowercase_key_is_allowed():
                     "/DisableStartupDialogs /Out d:/l.log /DumpResult d:/rc.txt") == []
 
 
+FOREIGN = "ibcmd infobase config load --db-path=d:/base --file=d:/new.cf"
+
+
 def test_d17_foreign_tool_is_not_judged():
-    """Д-17: ibcmd не 1cv8; скрипт не судит чужой инструмент."""
-    out = problems("ibcmd infobase config load --db-path=d:/base --file=d:/new.cf")
+    """Д-17: ibcmd не 1cv8; скрипт не судит чужой инструмент и не запрещает его.
+
+    Прежняя редакция теста требовала ровно одну запись в problems — то есть
+    закрепляла код возврата 1 на инструменте, который рекомендует наш же
+    рецепт (references/load-configuration.md, шаг 3). Граница компетенции —
+    это замечание, а не приговор.
+    """
+    assert problems(FOREIGN) == [], problems(FOREIGN)
+    out = notes(FOREIGN)
     assert len(out) == 1, out
     assert "вне компетенции" in out[0], out
+
+
+def test_d17_foreign_tool_returns_zero():
+    """SKILL.md обещает «код возврата 0 — можно запускать». Проверяем запуском."""
+    assert exit_code(FOREIGN) == 0
+
+
+def test_c1_ib_connection_string_sets_the_base():
+    """/IBConnectionString задаёт базу наравне с /F.
+
+    Проверено запуском на 8.3.27.2325: DESIGNER /IBConnectionString
+    "File=D:/1C/base/trade;" /DumpCfg создал файл того же размера, что и
+    выгрузка через /F (docs/evidence/2026-08-22-blocking-rules.md).
+    """
+    assert problems('1cv8 ENTERPRISE /IBConnectionString "File=d:/base;" '
+                    "/DisableStartupDialogs") == []
+
+
+def test_c1_lowercase_base_key_is_allowed():
+    """Регистр не важен и для ключа базы: /f — та же база, что /F."""
+    assert problems("1cv8 DESIGNER /f d:/base /dumpcfg d:/out.cf "
+                    "/disablestartupdialogs") == []
+
+
+def test_no_base_still_blocks():
+    """Незаданная база остаётся ошибкой: платформа отвечает «Неопределена
+    информационная база», код 1, файла нет — проверено запуском."""
+    out = problems("1cv8 DESIGNER /DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log")
+    assert any("не задана база" in p for p in out), out
+
+
+def test_no_mode_still_blocks():
+    """Неуказанный режим остаётся ошибкой: «Неопределен режим запуска», код 1."""
+    out = problems("1cv8 /F d:/base /DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log")
+    assert any("режим запуска" in p for p in out), out
+
+
+def test_alien_mode_key_inside_designer_is_only_a_note():
+    """Ключ чужого режима внутри пакетного DESIGNER не блокируется.
+
+    Проверено запуском: DESIGNER /F <база> /UsePrivilegedMode /DumpCfg
+    отработал, файл создан и совпал по размеру с обычной выгрузкой. Правило 11
+    архитектуры: не показал — не блокируй.
+    """
+    line = ("1cv8 DESIGNER /F d:/base /UsePrivilegedMode /DumpCfg d:/x.cf "
+            "/DisableStartupDialogs /Out d:/l.log")
+    assert problems(line) == [], problems(line)
+    assert any("UsePrivilegedMode" in n for n in notes(line)), notes(line)
+
+
+def test_alien_option_is_only_a_note():
+    """Опция не от этого ключа не блокируется: платформа её приняла.
+
+    Проверено запуском: DESIGNER /F <база> /DumpCfg <файл> -Format Hierarchical
+    отработал, файл создан и побайтно того же размера, что и без опции.
+    """
+    line = ("1cv8 DESIGNER /F d:/base /DumpCfg d:/x.cf -Format Hierarchical "
+            "/DisableStartupDialogs /Out d:/l.log")
+    assert problems(line) == [], problems(line)
+    assert any("-Format" in n for n in notes(line)), notes(line)
 
 
 def test_placeholder_still_blocks():
@@ -86,6 +166,12 @@ def test_placeholder_still_blocks():
 
 
 def test_wrong_mode_still_blocks():
-    """Ключ не из этого режима остаётся ошибкой."""
+    """Пакетный ключ конфигуратора вне DESIGNER остаётся ошибкой.
+
+    Проверено запуском: ENTERPRISE /F <база> /LoadCfg <файл>
+    /DisableStartupDialogs не загрузил ничего — платформа открыла сеанс и не
+    вернула управление, процесс убит по таймауту 60 секунд, журнал пуст,
+    /DumpResult не создан.
+    """
     assert any("режиме" in p for p in problems(
         "1cv8 ENTERPRISE /F d:/base /LoadCfg d:/n.cf /Out d:/l.log"))

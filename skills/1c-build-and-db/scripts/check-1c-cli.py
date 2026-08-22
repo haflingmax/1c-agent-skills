@@ -4,13 +4,19 @@
 режима, опцию не от той команды, отсутствие обязательного пакетного ключа и
 заглушку вместо настоящего пути.
 
+Останавливает работу только то, про что запуском показано, что платформа этого
+не делает, — см. docs/evidence/2026-08-22-blocking-rules.md. Остальное уходит в
+предупреждения: у них ненулевой смысл и нулевой код возврата. Чужой инструмент
+(ibcmd, rac, ras) скрипт не судит вовсе.
+
 Состав ключей взят из руководства администратора 8.3.27, приложение 7
 (140 ключей), и лежит в cli-keys.json рядом с этим файлом.
 
     python scripts/check-1c-cli.py "1cv8 DESIGNER /F d:/base /LoadCfg new.cf /UpdateDBCfg"
     echo "<команда>" | python scripts/check-1c-cli.py
 
-Код возврата 0 — замечаний нет, 1 — есть. Годится для CI и для вызова из навыка.
+Код возврата 1 — есть [ошибка]; 0 — запускать можно, даже если есть [внимание].
+Годится для CI и для вызова из навыка.
 """
 import json
 import re
@@ -24,6 +30,12 @@ MODE_WORDS = {"DESIGNER", "ENTERPRISE", "CREATEINFOBASE", "CONFIG"}
 
 # Без этого пакетный запуск открывает диалог и висит вечно.
 BATCH_REQUIRED = "/DisableStartupDialogs"
+
+# Ключи раздела 7.3.1, каждый из которых задаёт базу. /IBConnectionString здесь
+# наравне с остальными: проверено запуском 22.08.2026 —
+# DESIGNER /IBConnectionString "File=D:/1C/base/trade;" /DumpCfg создал файл,
+# побайтно того же размера, что и выгрузка через /F.
+BASE_KEYS = {"/F", "/S", "/IBName", "/IBConnectionString"}
 
 # Ключи, которые меняют базу необратимо. Для них проверяем страховку.
 DESTRUCTIVE = {"/LoadCfg", "/LoadConfigFromFiles", "/UpdateDBCfg", "/RestoreIB", "/MergeCfg"}
@@ -102,9 +114,12 @@ def check(line, catalog):
 
     tool = Path(args[0].strip('"')).name.lower()
     if not tool.startswith("1cv8"):
-        return ["%s вне компетенции проверяльщика: он знает только команды 1cv8. "
-                "Состав ключей ibcmd, rac и ras сверяется по документации вручную"
-                % args[0]], []
+        # Не приговор команде, а граница компетенции: замечание с кодом возврата 0.
+        # Иначе проверяльщик запрещал бы ibcmd, который рекомендует наш же рецепт
+        # (references/load-configuration.md, шаг 3).
+        return [], ["%s вне компетенции проверяльщика: он знает только команды 1cv8. "
+                    "Состав ключей ibcmd, rac и ras сверяется по документации вручную"
+                    % args[0]]
 
     mode = None
     for a in args[1:4]:
@@ -130,9 +145,22 @@ def check(line, catalog):
 
     for name, _ in used:
         km = keys[name].get("mode")
-        if mode and km in MODE_WORDS and km != mode:
-            problems.append(
-                "%s работает в режиме %s, а команда запущена как %s" % (name, km, mode))
+        if not (mode and km in MODE_WORDS and km != mode):
+            continue
+        where = "%s работает в режиме %s, а команда запущена как %s" % (name, km, mode)
+        if km == "DESIGNER":
+            # Проверено запуском: ENTERPRISE /F <база> /LoadCfg <файл> не грузит
+            # ничего — платформа открывает сеанс и не возвращает управление
+            # (убит по таймауту 60 с), журнал пуст, /DumpResult не создан.
+            problems.append(where + ": пакетную операцию конфигуратора вне режима "
+                                    "DESIGNER выполнять некому — платформа открывает "
+                                    "сеанс и не завершается")
+        else:
+            # Обратное направление запуском опровергнуто: DESIGNER /F <база>
+            # /UsePrivilegedMode /DumpCfg отработал, файл создан и совпал по
+            # размеру с обычной выгрузкой. Блокировать работающее нельзя.
+            notes.append(where + "; в пакетном запуске платформа такой ключ приняла "
+                                 "и операцию выполнила — проверь, нужен ли он здесь")
 
     # опции принадлежат ближайшему предшествующему ключу
     owners = {i: name for name, i in used}
@@ -144,13 +172,16 @@ def check(line, catalog):
         if not a.startswith("-") or len(a) < 2 or a[1].isdigit():
             continue
         if current is None:
-            problems.append("%s — опция указана до первого ключа" % a)
+            notes.append("%s — опция указана до первого ключа" % a)
             continue
         allowed = keys[current].get("opts") or []
         if allowed and not any(matches_option(a, o) for o in allowed):
             near = [o for o in allowed if o.lower().startswith(a.lower()[:5])]
             hint = (", возможно " + near[0]) if near else ""
-            problems.append("%s не является опцией %s%s" % (a, current, hint))
+            # Не запрет: проверено запуском, что чужая опция команду не ломает —
+            # DESIGNER /F <база> /DumpCfg <файл> -Format Hierarchical отработал,
+            # файл создан и побайтно того же размера, что и без опции.
+            notes.append("%s не является опцией %s%s" % (a, current, hint))
 
     # заглушки ищем по всей строке: <каталог базы> разрезается пробелом на два слова
     for pat, why in PLACEHOLDERS:
@@ -174,9 +205,13 @@ def check(line, catalog):
             "/UpdateDBCfg без -Dynamic: решение о динамическом обновлении "
             "принимается заранее, а не оставляется платформе")
 
-    if not any(a.startswith("/F") or a.startswith("/S") or a.startswith("/IBName")
-               or a.upper() == "CREATEINFOBASE" for a in args):
-        problems.append("не задана база: нужен /F, /S или /IBName")
+    # Сверяемся с каноническими именами из used, а не с началом строки: иначе
+    # /f строчными и /IBConnectionString считаются незаданной базой. Блокировка
+    # доказана запуском: DESIGNER /DumpCfg <файл> без базы даёт код 1,
+    # «Неопределена информационная база», файла нет.
+    if not (names & BASE_KEYS) and mode != "CREATEINFOBASE":
+        problems.append(
+            "не задана база: нужен /F, /S, /IBName или /IBConnectionString")
 
     return problems, notes
 
