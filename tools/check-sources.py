@@ -26,6 +26,13 @@ SOURCE = re.compile(r"стандарт|глав[аеы]|приложени|ру�
 SECTION_REF = re.compile(r"раздел\w*\s+«([^»]+)»\s+в\s+(?:ядре|навыке)", re.I)
 HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.M)
 
+# Маршрутная таблица вида «| Раздел | Когда нужен | Навык |» (см. developing-
+# 1c-configurations/SKILL.md, раздел «Разделы»): первый столбец — законное имя
+# раздела, не обязанное совпадать ни с одним markdown-заголовком. Без этого
+# «см. раздел «Сборка и база» в навыке» ловится как висячее, хотя это просто
+# другой, действующий способ адресации.
+ROUTE_TABLE_HEADER = re.compile(r"^\|\s*Раздел[ы]?\s*\|.*$\n^\|[\s:|-]+\|\s*$\n", re.M | re.I)
+
 
 def check_file(path):
     """Возвращает список абзацев без источника."""
@@ -57,17 +64,32 @@ def collect_headings(paths):
     return names
 
 
+def collect_route_names(paths):
+    """Возвращает имена разделов из маршрутных таблиц («| Раздел | ... |»)."""
+    names = set()
+    for p in paths:
+        text = Path(p).read_text(encoding="utf-8")
+        for m in ROUTE_TABLE_HEADER.finditer(text):
+            for line in text[m.end():].splitlines():
+                if not line.startswith("|"):
+                    break
+                cells = line.strip().strip("|").split("|")
+                if cells and cells[0].strip():
+                    names.add(cells[0].strip().strip("*`"))
+    return names
+
+
 def find_dangling_refs(paths):
     """Возвращает список (файл, название) для ссылок на раздел по имени,
-    которого нет ни в одном заголовке набора."""
+    которого нет ни среди заголовков, ни среди имён в маршрутных таблицах."""
     paths = list(paths)
-    headings = collect_headings(paths)
+    names = collect_headings(paths) | collect_route_names(paths)
     bad = []
     for p in paths:
         text = Path(p).read_text(encoding="utf-8")
         for m in SECTION_REF.finditer(text):
             name = m.group(1).strip()
-            if name not in headings:
+            if name not in names:
                 bad.append((Path(p), name))
     return bad
 

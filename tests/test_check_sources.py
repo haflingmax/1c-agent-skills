@@ -61,6 +61,26 @@ def test_section_reference_with_existing_heading_passes(tmp_path):
     assert not bad, "ссылка на существующий раздел ловиться не должна"
 
 
+def test_route_table_name_with_navyke_marker_is_not_dangling(tmp_path):
+    """Находка ревью: «раздел «Название» в навыке» — не только про заголовки.
+    В developing-1c-configurations/SKILL.md есть маршрутная таблица «Разделы»,
+    где имя раздела («Сборка и база») законно и не обязано быть заголовком.
+    Ссылка на такое имя с маркером «в навыке» не должна ловиться как висячая."""
+    ref = tmp_path / "SKILL.md"
+    ref.write_text(
+        "См. раздел «Сборка и база» в навыке `1c-build-and-db`.\n",
+        encoding="utf-8")
+    core = tmp_path / "CORE.md"
+    core.write_text(
+        "## Разделы\n\n"
+        "| Раздел | Когда нужен | Навык |\n"
+        "|---|---|---|\n"
+        "| Сборка и база | конфигуратор из командной строки | `1c-build-and-db` |\n",
+        encoding="utf-8")
+    bad = mod.find_dangling_refs([ref, core])
+    assert not bad, "имя раздела из маршрутной таблицы не должно ловиться как висячее"
+
+
 def test_task3_renamed_heading_case_reproduced(tmp_path):
     """Повтор реального случая: временно возвращаем старое имя раздела в
     отдельном временном файле и проверяем его против фактического набора
