@@ -137,6 +137,26 @@ def test_measure_trigger_write_preserves_line_ending():
         "регулярка %r портит перевод строки: %r" % (pattern, out))
 
 
+def test_measure_trigger_write_keeps_dollar_intact():
+    """Знак $ в описании обязан дойти до файла ровно одним.
+
+    Замена литеральная (String.Replace), а -replace потом схлопывает каждую
+    пару `$$` в один `$`. Пара — значит ровно два символа: четыре давали
+    на выходе два `$`, то есть инструмент писал в skills/ не то, что померил,
+    и хэш «после» считался бы со строки, которой в файле нет. Порча проходит
+    мимо check-manifests.py: YAML при ней остаётся валидным.
+    """
+    text = read("measure-trigger.ps1")
+    m = re.search(r"\$safe = \$desc\.Replace\('\$', '([^']+)'\)", text)
+    assert m, "не найдено экранирование $ в записи description"
+    escaped = "цена 100 $".replace("$", m.group(1))
+    # .NET -replace: в строке замены `$$` означает один литеральный `$`
+    written = escaped.replace("$$", "$")
+    assert written == "цена 100 $", (
+        "экранирование %r записывает %r вместо «цена 100 $»"
+        % (m.group(1), written))
+
+
 # --- M-2: незаявленных внешних зависимостей быть не должно ------------------
 
 def _third_party_imports(paths):
