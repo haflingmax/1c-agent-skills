@@ -493,14 +493,85 @@ def test_at_key_not_first_only_warns():
     "1cv8 DESIGNER /@ d:/cmd.txt /F d:/base /DisableStartupDialogs",
     # /@ — единственный ключ команды вообще (условие «или единственной»).
     "1cv8 /@ d:/cmd.txt",
+    # I-6: тот самый случай из документации, который блокировался. Режима и
+    # базы в строке нет — и не должно быть: содержимое файла заменит собой
+    # командную строку целиком.
+    "1cv8 /@d:/cmd.txt",
+    "1cv8 DESIGNER /@ d:/cmd.txt",
 ])
 def test_at_key_first_is_clean(line):
-    """Две законные команды с /@ первым (или единственным) ключом — правило
-    не должно заводить новую блокировку и не должно предупреждать про
-    позицию: по разделу 7.3.11 это ровно тот случай, который документация
-    разрешает.
+    """Законные команды с /@ первым (или единственным) ключом.
+
+    I-6: раньше докстрока обещала «правило не должно заводить новую
+    блокировку», а проверялось только отсутствие замечания «не первым» —
+    заявление шире доказательства. При этом «1cv8 /@ d:/cmd.txt» как раз
+    блокировалась двумя ошибками: K002 «не указан режим» и K007 «не задана
+    база», код 1.
+
+    Раздел 7.3.11 дословно: «Во время обработки командной строки, содержимое
+    файла полностью заменит собой командную строку запускаемого приложения»,
+    и отсюда «команда /@ должна быть первой или единственной». Режим, база и
+    /DisableStartupDialogs лежат в файле — требовать их в самой строке значит
+    блокировать документированную команду. Global Constraints плана называют
+    новую блокировку законного Critical.
     """
+    assert problems(line) == [], problems(line)
+    assert exit_code(line) == 0, problems(line)
     assert not any("/@" in n and "не первым" in n for n in notes(line)), notes(line)
+    assert not any(n.startswith("K014") or "K014" in n for n in notes(line)), notes(line)
+
+
+@pytest.mark.parametrize("line", [
+    # Без /@ требование режима и базы остаётся: I-6 сужает правило до /@,
+    # а не отменяет его.
+    "1cv8 DESIGNER /DumpCfg d:/a.cf",
+    "1cv8 /DumpCfg d:/a.cf",
+])
+def test_missing_base_still_blocks_without_at_key(line):
+    """I-6 не имеет права ослабить проверку там, где /@ нет."""
+    out = problems(line)
+    assert any("K007" in p for p in out), out
+    assert exit_code(line) == 1
+
+
+# Самое дорогое ограничение проекта: «скрипт блокирует только противоречащее
+# документированному составу приложения 7; новая блокировка законного —
+# Critical». За ветку блокировка законного вносилась дважды, и оба раза её
+# ловило только ревью — то есть человек, а не прогон. Здесь она ловится
+# прогоном: каждая команда 1cv8, которую навык показывает читателю как рабочую,
+# обязана проходить собственный проверяльщик с кодом 0.
+_CMD_RE = re.compile(r"(?:^|[\s\"'`(])(1cv8(?:\.exe)?\s+[^\r\n`]*)")
+
+
+def _commands_from_skill_bodies():
+    """Команды 1cv8 из SKILL.md, references/ и scripts/ обоих навыков."""
+    targets = (sorted(ROOT.glob("skills/*/SKILL.md"))
+               + sorted(ROOT.glob("skills/*/references/*.md"))
+               + sorted(ROOT.glob("skills/*/scripts/*.py")))
+    found = []
+    for f in targets:
+        rel = f.relative_to(ROOT).as_posix()
+        for lineno, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            for m in _CMD_RE.finditer(line):
+                cmd = m.group(1).strip().rstrip("\\`\"'").strip()
+                if cmd:
+                    found.append(pytest.param(cmd, id="%s:%d" % (rel, lineno)))
+    return found
+
+
+_SKILL_COMMANDS = _commands_from_skill_bodies()
+
+
+def test_skill_bodies_actually_contain_commands():
+    """Сторож самого сторожа: пустой список молча прошёл бы за успех."""
+    assert len(_SKILL_COMMANDS) >= 8, _SKILL_COMMANDS
+
+
+@pytest.mark.parametrize("line", _SKILL_COMMANDS)
+def test_no_command_from_skill_bodies_is_blocked(line):
+    """Ни одна показанная навыком команда не блокируется проверяльщиком."""
+    out = problems(line)
+    assert out == [], "команда из тела навыка заблокирована: %s -> %s" % (line, out)
 
 
 @pytest.mark.parametrize("flag", ["--help", "-h"])

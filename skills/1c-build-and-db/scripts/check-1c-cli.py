@@ -276,13 +276,30 @@ def check(line, catalog):
                     "Состав ключей ibcmd, rac и ras сверяется по документации вручную"
                     % (K_FOREIGN_TOOL, args[0])]
 
+    # I-6. Раздел 7.3.11 (процитирован ниже дословно): «Во время обработки
+    # командной строки, содержимое файла полностью заменит собой командную
+    # строку запускаемого приложения», и отсюда «команда /@ должна быть первой
+    # или единственной командой командной строки». Значит при /@ первым ключом
+    # режим, база и пакетный флаг лежат В ФАЙЛЕ, а не в строке — требовать их
+    # в самой строке нельзя. Раньше документированная команда «1cv8 /@ файл»
+    # блокировалась двумя ошибками сразу (K002 и K007) и получала код 1:
+    # новая блокировка законного, ровно того рода, который Global Constraints
+    # плана называет Critical.
+    #
+    # Имя первого ключа приводится к каноническому тем же known_key, что и
+    # ниже: слитная запись «/@d:/cmd.txt» — тоже /@ первым ключом.
+    first_key = next((a for a in args[1:] if a.startswith("/")), None)
+    at_replaces_line = False
+    if first_key is not None:
+        at_replaces_line = known_key(first_key.split(":", 1)[0], keys) == "/@"
+
     mode = None
     for a in args[1:4]:
         up = a.upper()
         if up in MODE_WORDS:
             mode = up
             break
-    if mode is None:
+    if mode is None and not at_replaces_line:
         problems.append(
             "%s не указан режим запуска: после имени программы ожидается "
             "DESIGNER, ENTERPRISE или CREATEINFOBASE" % K_NO_MODE)
@@ -417,7 +434,9 @@ def check(line, catalog):
 
     names = {n for n, _ in used}
 
-    if mode == "DESIGNER" and names and BATCH_REQUIRED not in names:
+    # at_replaces_line — см. I-6 выше: «1cv8 DESIGNER /@ файл» несёт
+    # /DisableStartupDialogs внутри файла, требовать его в строке нельзя.
+    if mode == "DESIGNER" and names and BATCH_REQUIRED not in names and not at_replaces_line:
         notes.append(
             "%s нет %s — пакетный запуск откроет диалог и остановится" % (K_NO_BATCH_FLAG, BATCH_REQUIRED))
 
@@ -434,7 +453,7 @@ def check(line, catalog):
     # /f строчными и /IBConnectionString считаются незаданной базой. Блокировка
     # доказана запуском: DESIGNER /DumpCfg <файл> без базы даёт код 1,
     # «Неопределена информационная база», файла нет.
-    if not (names & BASE_KEYS) and mode != "CREATEINFOBASE":
+    if not (names & BASE_KEYS) and mode != "CREATEINFOBASE" and not at_replaces_line:
         problems.append(
             "%s не задана база: нужен /F, /S, /IBName или /IBConnectionString" % K_NO_BASE)
 
