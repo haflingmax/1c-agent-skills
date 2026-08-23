@@ -111,7 +111,15 @@ def check_descriptions_agree():
 
 
 def check_version():
-    """Версия объявлена ровно один раз и соответствует semver."""
+    """Версия объявлена ровно один раз, совпадает в манифестах и семверна.
+
+    I-4: раньше здесь сверялось только соответствие semver и отсутствие
+    дубля в записи маркета. Равенство версий двух манифестов —
+    объявленное правило docs/releasing.md («Обе строки обязаны
+    совпадать»), — не проверялось ничем: тот же файл писал «Проверки
+    version в CI нет» и предлагал ручной grep. Проверено: версия 0.2.0
+    против 0.3.0 давала «нарушений: 0», код 0.
+    """
     bad = []
     claude_path = ROOT / ".claude-plugin" / "plugin.json"
     market_path = ROOT / ".claude-plugin" / "marketplace.json"
@@ -128,6 +136,14 @@ def check_version():
             bad.append("%s: нет поля version" % src)
         elif not SEMVER.fullmatch(v):
             bad.append('%s: версия "%s" не соответствует semver' % (src, v))
+
+    distinct = {v for v in versions.values() if v}
+    if len(distinct) > 1:
+        bad.append(
+            "версии манифестов разошлись: %s. docs/releasing.md требует "
+            "двигать обе одним и тем же числом в том же коммите"
+            % ", ".join("%s = %s" % (src, versions[src])
+                        for src in sorted(versions) if versions[src]))
 
     if market_path.exists():
         market = load_json(market_path)

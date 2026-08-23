@@ -170,8 +170,17 @@ function Set-SkillDescription([string]$path, [string]$desc) {
   $updated = $before -replace '(?m)^description:[^\r\n]*', ("description: " + $safe)
   [System.IO.File]::WriteAllText($path, $updated, (New-Object System.Text.UTF8Encoding($false)))
 
-  $out = (& python $CheckManifests 2>&1 | Out-String).Trim()
-  $code = $LASTEXITCODE
+  # PowerShell 5.1 оборачивает stderr нативной программы в ErrorRecord при
+  # перенаправлении; при $ErrorActionPreference = 'Stop' у вызывающей стороны
+  # это роняет прогон раньше, чем мы посмотрим на код возврата.
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $out = (& python $CheckManifests 2>&1 | Out-String).Trim()
+    $code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $prev
+  }
   Log-Progress @{ event = 'check-manifests'; exit = $code; output = $out; time = (Get-Date).ToString('s') }
   if ($code -ne 0) {
     [System.IO.File]::WriteAllText($path, $before, (New-Object System.Text.UTF8Encoding($false)))

@@ -40,7 +40,42 @@ function Write-Line($obj) {
 
 Write-Line @{ event = 'start'; envs = $Envs; dir = $Dir; time = (Get-Date).ToString('o') }
 
-# --- Шаг 0: навыки на месте в каждой опрашиваемой среде ---
+# --- Шаг 0а: статические проверки прежде живых прогонов ---
+# I-4: check-manifests.py был написан, но в контур не встал — его не звал ни
+# один скрипт и не импортировал ни один тест, а README называл только
+# check-skills.py. Приёмка, которая часами гоняет агентов на наборе со
+# сломанным манифестом или нечитаемым YAML-фронтматтером, меряет не то.
+# Ненулевой код любой из трёх — приёмка не начинается.
+
+# PowerShell 5.1: перенаправление stderr нативной программы внутри PS
+# оборачивает каждую строку в ErrorRecord (NativeCommandError). При
+# $ErrorActionPreference = 'Stop' это роняет скрипт РАНЬШЕ, чем мы посмотрим
+# на код возврата, и вместо понятного сообщения человек видит трассировку
+# Python. Поэтому на время вызова preference опускается до 'Continue',
+# а решение принимается по $LASTEXITCODE.
+function Invoke-Checker([string]$scriptPath) {
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $text = (& python $scriptPath 2>&1 | Out-String).Trim()
+    $code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+  return [pscustomobject]@{ Output = $text; Code = $code }
+}
+
+$checkers = @('check-skills.py', 'check-sources.py', 'check-manifests.py')
+foreach ($c in $checkers) {
+  $r = Invoke-Checker (Join-Path $PSScriptRoot $c)
+  Write-Line @{ event = 'check'; tool = $c; exit = $r.Code; output = $r.Output; time = (Get-Date).ToString('o') }
+  if ($r.Code -ne 0) {
+    Write-Line @{ event = 'abort'; reason = "$c вернул $($r.Code)"; time = (Get-Date).ToString('o') }
+    throw ("приёмка не начата: tools/$c вернул $($r.Code)`n" + $r.Output)
+  }
+}
+
+# --- Шаг 0б: навыки на месте в каждой опрашиваемой среде ---
 if (-not $SkipInstall) {
   & powershell -NoProfile -File (Join-Path $PSScriptRoot 'install-skills.ps1') | Out-Null
   Write-Line @{ event = 'install'; target = 'kilo+claude'; time = (Get-Date).ToString('o') }
