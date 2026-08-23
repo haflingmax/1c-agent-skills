@@ -191,7 +191,17 @@ def build(ref_root):
     }
 
 
-def as_markdown(reg):
+def read_reading_layer(path):
+    """Читающий слой, если он уже сведён. Его отсутствие — не ошибка."""
+    path = Path(path)
+    if not path.is_file():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {r["единица"]: r for r in data.get("записи", [])}
+
+
+def as_markdown(reg, reading=None):
+    reading = reading or {}
     L = []
     a = L.append
     a("# Опись референсных наборов (ПЕРЕНОС-1)")
@@ -199,9 +209,16 @@ def as_markdown(reg):
     a("Порождается `tools/build-transfer-registry.py` из `_ref/` под gitignore.")
     a("Правится не руками, а пересборкой.")
     a("")
-    a("**Только механический слой.** Выжимка содержания, отнесение к одному из")
-    a("16 наших разделов и решение «переносить или нет» здесь намеренно")
-    a("отсутствуют: владелец просил решать попунктно на этапе ПЕРЕНОС-2.")
+    if reading:
+        a("Два слоя. **Механический** — из файлов, воспроизводится побайтно.")
+        a("**Читающий** — суждение агентов-читателей, лежит в")
+        a("`docs/transfer-reading.json` и проверяется на входе:")
+        a("каждая запись опирается на цитату с путём и строкой.")
+    else:
+        a("**Только механический слой.** Читающий ещё не сведён.")
+    a("")
+    a("**Решения «переносить или нет» здесь нет и не будет.** Опись отвечает")
+    a("на вопрос «что есть», решает этап ПЕРЕНОС-2, попунктно.")
     a("")
     a("## Источники")
     a("")
@@ -223,6 +240,9 @@ def as_markdown(reg):
     a("`va-ai` того же автора. Имена спариваются по правилу «`X` ↔ `1c-X`».")
     a("Разбирать пару надо вместе, сравнивая версии, а не дважды по отдельности.")
     a("")
+    if reading:
+        a(_by_section(reg, reading))
+
     for meta in SETS:
         rows = [s for s in reg["навыки"] if s["набор"] == meta["ключ"]]
         a("## %s (%d)" % (meta["репозиторий"], len(rows)))
@@ -239,17 +259,47 @@ def as_markdown(reg):
     return "\n".join(L) + "\n"
 
 
+def _by_section(reg, reading):
+    """Разбор пойдёт по нашим разделам, а не по чужим наборам — так и подаём."""
+    paired = {s["имя"]: bool(s["пара"]) for s in reg["навыки"]}
+    groups = {}
+    for rec in reading.values():
+        groups.setdefault(rec.get("раздел", "—"), []).append(rec)
+
+    L = ["## По нашим разделам", "",
+         "Единица разбора — навык. Парная единица (`X` и `1c-X`) идёт одной",
+         "строкой: две версии одного навыка разбираются вместе, сравнением.", ""]
+    order = sorted(groups, key=lambda k: (k == "вне раскладки", -len(groups[k]), k))
+    for section in order:
+        rows = sorted(groups[section], key=lambda r: r["единица"])
+        L.append("### %s — %d" % (section, len(rows)))
+        L.append("")
+        L.append("| Единица | Версий | Суть | Опора |")
+        L.append("|---|---|---|---|")
+        for r in rows:
+            L.append("| `%s` | %s | %s | %s |"
+                     % (r["единица"],
+                        "две" if paired.get(r["единица"]) else "одна",
+                        r["суть"].replace("|", "\\|"),
+                        r.get("опора", "")))
+        L.append("")
+    return "\n".join(L)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ref", default=str(ROOT / "_ref"))
     ap.add_argument("--out-json", default=str(ROOT / "docs" / "transfer-registry.json"))
     ap.add_argument("--out-md", default=str(ROOT / "docs" / "transfer-registry.md"))
+    ap.add_argument("--reading", default=str(ROOT / "docs" / "transfer-reading.json"),
+                    help="читающий слой; его отсутствие не ошибка")
     args = ap.parse_args()
 
     reg = build(args.ref)
+    reading = read_reading_layer(args.reading)
     Path(args.out_json).write_text(
         json.dumps(reg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-    Path(args.out_md).write_text(as_markdown(reg), encoding="utf-8", newline="\n")
+    Path(args.out_md).write_text(as_markdown(reg, reading), encoding="utf-8", newline="\n")
 
     print("навыков: %d, в паре: %d (%d пар), различных: %d"
           % (reg["всего_навыков"], reg["навыков_в_паре"],
