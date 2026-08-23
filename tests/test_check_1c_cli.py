@@ -449,21 +449,69 @@ def test_wrong_mode_still_blocks():
         "1cv8 ENTERPRISE /F d:/base /LoadCfg d:/n.cf /Out d:/l.log"))
 
 
-def test_catalog_completeness_against_source():
-    """Н-03, Н-08: состав каталога сверяется с приложением 7 программно.
+ITS_SOURCE = ROOT / "_its" / "cmdline" / "its-pril7-full.json"
+BUILDER = ROOT / "tools" / "build-cli-keys.py"
 
-    Источник — _its/cmdline/its-pril7-full.json. Если выгрузки нет на машине,
-    тест пропускается: каталог _its/ под gitignore и у пользователя его нет.
+
+def test_catalog_carries_class_two_fixes():
+    """Н-03, Н-08: то, что класс II добавил в каталог, из него не пропало.
+
+    I-3: эти три утверждения источник не открывают вовсе и в нём не
+    нуждаются — они читают закоммиченный cli-keys.json, который есть у
+    любого пользователя набора. Раньше они лежали под `pytest.skip` по
+    наличию `_its/`, и у пользователя, у которого выгрузки нет и быть не
+    должно, исчезали вместе с ней.
     """
-    import pytest
-    src = ROOT / "_its" / "cmdline" / "its-pril7-full.json"
-    if not src.exists():
-        pytest.skip("выгрузка ИТС недоступна: каталог _its/ под gitignore")
     keys = CATALOG["ключи"]
     assert "/@" in keys, "документированный ключ /@ (раздел 7.3.11) отсутствует"
     assert isinstance(keys["/DumpResult"]["modes"], list), "режим обязан быть списком"
     assert len(keys["/DumpResult"]["modes"]) >= 2, (
         "/DumpResult описан в двух режимах: 7.2.3 и 7.4.17")
+
+
+def test_catalog_completeness_against_source(tmp_path, monkeypatch, capsys):
+    """Н-03, Н-08, Н-09: каталог сверяется с приложением 7 НАСТОЯЩЕЙ сверкой.
+
+    I-3: тест с этим именем источник не открывал ни разу. Он делал
+    `pytest.skip` по отсутствию `_its/` и дальше проверял сам каталог тремя
+    утверждениями — то есть проверял себя собой. Проверено: каталог с
+    дописанным вручную ключом `/ВыдуманныйКлюч` и подменёнными опциями
+    `/DumpCfg` он проходил.
+
+    Обещание спеки по классу II — «число ключей и опций сверено с
+    приложением 7 программно, а не глазами». Здесь оно и выполняется:
+    каталог пересобирается из источника тем же `tools/build-cli-keys.py`
+    во временный файл и сравнивается с закоммиченным ПОБАЙТНО. Такая сверка
+    ловит любую ручную правку порождаемого файла — и потерянный режим
+    (Н-03), и потерянный ключ (Н-08), и потерянные опции (Н-09).
+
+    Временная копия заводится копированием закоммиченного файла: сборщик
+    переносит из прежнего каталога поле `gloss` (пояснения писали мы, в
+    источнике их нет), и без копии сверка расходилась бы на них, а не на
+    составе.
+    """
+    if not ITS_SOURCE.exists():
+        pytest.skip("выгрузка ИТС недоступна: каталог _its/ под gitignore")
+
+    spec_b = importlib.util.spec_from_file_location("build_cli_keys", BUILDER)
+    builder = importlib.util.module_from_spec(spec_b)
+    sys.modules["build_cli_keys"] = builder
+    spec_b.loader.exec_module(builder)
+
+    committed = builder.DST.read_bytes()
+    tmp_dst = tmp_path / "cli-keys.json"
+    tmp_dst.write_bytes(committed)
+    monkeypatch.setattr(builder, "DST", tmp_dst)
+
+    assert builder.main() == 0, capsys.readouterr().out
+    rebuilt = tmp_dst.read_bytes()
+
+    assert rebuilt == committed, (
+        "каталог %s разошёлся с пересборкой из %s: закоммичено %d байт, "
+        "собрано %d. Порождаемый файл правили руками либо изменился источник"
+        % (builder.DST.relative_to(ROOT).as_posix(),
+           ITS_SOURCE.relative_to(ROOT).as_posix(),
+           len(committed), len(rebuilt)))
 
 
 AT_KEY_NOT_FIRST = ("1cv8 DESIGNER /F d:/base /DumpCfg d:/x.cf /@ d:/cmd.txt "
