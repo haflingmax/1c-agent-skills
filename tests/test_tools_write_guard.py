@@ -44,6 +44,7 @@ READS_ONLY = {
     "run-acceptance.ps1": "копирует ИЗ skills/ и гоняет агентов",
     "run-prompt.ps1": "гоняет один промпт, файлов набора не трогает",
     "prove-blocking-rules.ps1": "гоняет 1cv8 во временном каталоге",
+    "build-transfer-registry.py": "читает _ref/, пишет опись в docs/, skills/ не трогает",
 }
 
 
