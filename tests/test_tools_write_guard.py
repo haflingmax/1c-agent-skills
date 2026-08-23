@@ -47,6 +47,7 @@ READS_ONLY = {
     "build-reference-registry.py": "читает _ref/, пишет опись в docs/, skills/ не трогает",
     "merge-reference-reading.py": "сводит выводы читателей в docs/, skills/ не трогает",
     "build-reference-data-registry.py": "читает _ref/, пишет опись данных в docs/, skills/ не трогает",
+    "merge-coverage-backlog.py": "сводит перечень тем в docs/, skills/ не трогает",
 }
 
 
