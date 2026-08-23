@@ -1,0 +1,292 @@
+"""Сведение сверки тем с ИТС (этап РАЗБОР-2б).
+
+Перечень тем выведен из двух чужих наборов, а те опираются на официальную
+документацию ровно одним документом из 78. Этот этап сводит темы с ИТС
+и отвечает на два встречных вопроса: что документация про тему говорит,
+и чего она требует помимо перечня.
+
+Главная проверка здесь — **источник**. На прошлых этапах опора вела к файлу
+референса; теперь она обязана вести к документу ИТС, и это проверяется
+не глазами: номер стандарта ищется в выгруженном корпусе. Ссылка на
+несуществующий стандарт — самый дешёвый способ выдать догадку за проверенное,
+и он закрывается механически.
+
+Запуск: PYTHONIOENCODING=utf-8 python tools/merge-its-verification.py <каталог с out-*.json>
+"""
+import argparse
+import importlib.util
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+ITS = ROOT / "_its"
+
+_spec = importlib.util.spec_from_file_location(
+    "merge_reference_reading", ROOT / "tools" / "merge-reference-reading.py")
+_mrr = importlib.util.module_from_spec(_spec)
+sys.modules["merge_reference_reading"] = _mrr
+_spec.loader.exec_module(_mrr)
+SECTIONS = _mrr.SECTIONS
+
+ИСХОДЫ = ["подтверждает", "уточняет", "противоречит", "молчит"]
+ОБЯЗАТЕЛЬНОСТЬ = ["стандарт", "руководство"]
+
+# Номер стандарта в опоре: «std737», «стандарт 737», «/db/v8std/content/737/hdoc».
+STD = re.compile(r"\bstd\s*(\d{3,6})|/db/v8std/content/(\d{3,6})/hdoc"
+                 r"|/db/metod8dev/content/(\d{3,6})/hdoc", re.IGNORECASE)
+# Ссылка на руководство: «гл. 2», «глава 7 §2.17», «руководство разработчика».
+GUIDE = re.compile(r"(глав[аеы]|гл\.)\s*\d+|руководств[оае]\s+(разработчика|администратора)"
+                   r"|приложени[ея]\s*7|§\s*\d+", re.IGNORECASE)
+
+
+def fail(message, code=2):
+    sys.stdout.write(message + "\n")
+    raise SystemExit(code)
+
+
+def корпус_ид():
+    """Идентификаторы всех выгруженных документов ИТС — чем проверяем опору."""
+    ids = set()
+    for имя in ("v8std-full.json", "metod8dev-full.json"):
+        p = ITS / имя
+        if not p.is_file():
+            continue
+        d = json.loads(p.read_text(encoding="utf-8"))
+        for x in d.get("статьи", []):
+            ids.add(str(x.get("id")))
+            if x.get("std"):
+                ids.add(str(x["std"]))
+    return ids
+
+
+def проверить_опору(значение, ids, где, разрешить_руководство=True):
+    """Опора обязана вести к документу ИТС, а не звучать правдоподобно."""
+    t = str(значение or "").strip()
+    if not t:
+        return ["%s: пустой источник" % где]
+    номера = [n for m in STD.finditer(t) for n in m.groups() if n]
+    if номера:
+        чужие = [n for n in номера if n not in ids]
+        if чужие:
+            return ["%s: в корпусе ИТС нет документов %s — ссылка на несуществующее"
+                    % (где, ", ".join(sorted(set(чужие))))]
+        return []
+    if разрешить_руководство and GUIDE.search(t):
+        return []
+    return ["%s: в источнике нет ни номера стандарта, ни ссылки на главу "
+            "руководства: «%s»" % (где, t[:90])]
+
+
+def проверить(data, ожидаемые_темы, ids):
+    out = []
+    раздел = data.get("раздел", "")
+    if раздел not in SECTIONS:
+        out.append("раздел «%s» не из пятнадцати" % раздел)
+
+    темы = data.get("темы")
+    пробелы = data.get("пробелы")
+    противоречия = data.get("противоречия")
+    if not isinstance(темы, list) or not isinstance(пробелы, list):
+        return out + ["ожидались списки «темы» и «пробелы»"]
+    if not isinstance(противоречия, list):
+        out.append("«противоречия» должно быть списком, пусть и пустым")
+        противоречия = []
+
+    seen, спорные = set(), []
+    for t in темы:
+        имя = str(t.get("тема", "")).strip()
+        if not имя:
+            out.append("запись темы без имени")
+            continue
+        if имя in seen:
+            out.append("тема «%s» сверена дважды" % имя)
+        seen.add(имя)
+        исход = str(t.get("итс", "")).strip()
+        if исход not in ИСХОДЫ:
+            out.append("тема «%s»: исход «%s» не из перечня: %s"
+                       % (имя, исход, ", ".join(ИСХОДЫ)))
+            continue
+        if not str(t.get("что_говорит", "")).strip():
+            out.append("тема «%s»: пустое «что_говорит»" % имя)
+        if исход == "молчит":
+            # Для «молчит» источник — это перечень попыток поиска, а не адрес:
+            # инструмент прямо предупреждает, что ненайденное не равно
+            # отсутствующему, и запись обязана показать, чем искали.
+            if not str(t.get("источник", "")).strip():
+                out.append("тема «%s»: сказано «молчит», но не сказано, какими словами "
+                           "искали — это не проверить" % имя)
+        else:
+            out += проверить_опору(t.get("источник"), ids, "тема «%s»" % имя)
+        if исход == "противоречит":
+            спорные.append(имя)
+
+    не_сверены = sorted(set(ожидаемые_темы) - seen)
+    лишние = sorted(seen - set(ожидаемые_темы))
+    if не_сверены:
+        out.append("не сверены %d тем: %s"
+                   % (len(не_сверены), ", ".join(не_сверены[:6])))
+    if лишние:
+        out.append("сверены темы не из этого раздела: %s" % ", ".join(лишние[:6]))
+
+    for p in пробелы:
+        имя = str(p.get("тема", "")).strip()
+        if not имя:
+            out.append("пробел без имени")
+            continue
+        if not str(p.get("о_чём", "")).strip():
+            out.append("пробел «%s»: пустое «о_чём»" % имя)
+        об = str(p.get("обязательность", "")).strip()
+        if об not in ОБЯЗАТЕЛЬНОСТЬ:
+            out.append("пробел «%s»: обязательность «%s» не из перечня: %s"
+                       % (имя, об, ", ".join(ОБЯЗАТЕЛЬНОСТЬ)))
+        out += проверить_опору(p.get("источник"), ids, "пробел «%s»" % имя,
+                               разрешить_руководство=(об != "стандарт"))
+
+    описаны = " ".join(json.dumps(x, ensure_ascii=False) for x in противоречия)
+    for имя in спорные:
+        if имя not in описаны:
+            out.append("тема «%s» помечена «противоречит», но в «противоречия» "
+                       "не описана — это самая ценная находка этапа, её нельзя "
+                       "оставлять одной пометкой" % имя)
+    return out
+
+
+def merge(каталог):
+    каталог = Path(каталог)
+    входы = {}
+    for p in sorted(каталог.glob("*.json")):
+        if p.name.startswith("out-") or p.name.startswith("brief"):
+            continue
+        d = json.loads(p.read_text(encoding="utf-8"))
+        if "темы" in d:
+            входы[p.stem] = [t["тема"] for t in d["темы"]]
+    if not входы:
+        fail("[ошибка] в %s нет входных файлов разделов." % каталог)
+
+    выходы = sorted(каталог.glob("out-*.json"))
+    if not выходы:
+        fail("[ошибка] в %s нет ни одного файла out-*.json.\n"
+             "Сверку ведут агенты; без их выводов сводить нечего.\n"
+             "Пустой файл не записан намеренно." % каталог)
+
+    ids = корпус_ид()
+    if not ids:
+        fail("[ошибка] корпус ИТС не найден в %s.\n"
+             "Опора записей проверяется поиском номера стандарта в корпусе;\n"
+             "без него проверка стала бы формальной, а это хуже её отсутствия." % ITS)
+
+    разделы, problems, covered = [], [], set()
+    for p in выходы:
+        stem = p.stem[4:]
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+        except ValueError as e:
+            problems.append("%s: не разбирается как JSON: %s" % (p.name, e))
+            continue
+        ожид = входы.get(stem)
+        if ожид is None:
+            problems.append("%s: нет входного файла %s.json" % (p.name, stem))
+            ожид = []
+        covered.add(stem)
+        for n in проверить(d, ожид, ids):
+            problems.append("%s: %s" % (p.name, n))
+        разделы.append(d)
+
+    for stem in sorted(set(входы) - covered):
+        problems.append("раздел %s не сверен — нет out-%s.json" % (stem, stem))
+
+    свод = {"подтверждает": 0, "уточняет": 0, "противоречит": 0, "молчит": 0}
+    for d in разделы:
+        for t in d.get("темы") or []:
+            if t.get("итс") in свод:
+                свод[t["итс"]] += 1
+    разделы.sort(key=lambda d: -len(d.get("пробелы") or []))
+
+    return {
+        "что_это": "Сверка перечня тем с официальной документацией 1С. "
+                   "Опора каждой записи проверена по выгруженному корпусу ИТС.",
+        "разделов": len(разделы),
+        "исходы_тем": свод,
+        "пробелов_всего": sum(len(d.get("пробелы") or []) for d in разделы),
+        "противоречий_всего": sum(len(d.get("противоречия") or []) for d in разделы),
+        "разделы": разделы,
+    }, problems
+
+
+def as_markdown(v):
+    L, a = [], None
+    out = []
+    def a(s): out.append(s)
+    a("# Сверка с официальной документацией (РАЗБОР-2б)")
+    a("")
+    a("Порождается `tools/merge-its-verification.py`. Опора каждой записи проверена")
+    a("по выгруженному корпусу ИТС: номер стандарта ищется в корпусе, ссылка")
+    a("на несуществующий документ не проходит.")
+    a("")
+    a("| Исход сверки | Тем |")
+    a("|---|---|")
+    for k, n in v["исходы_тем"].items():
+        a("| %s | %d |" % (k, n))
+    a("")
+    a("Пробелов — тем, которых требует ИТС, а в перечне их нет: **%d**."
+      % v["пробелов_всего"])
+    a("Противоречий — мест, где чужой набор учит иному, чем документация: **%d**."
+      % v["противоречий_всего"])
+    a("")
+    for d in v["разделы"]:
+        a("## %s" % d.get("раздел", "?"))
+        a("")
+        пр = d.get("пробелы") or []
+        if пр:
+            a("### Чего требует ИТС, а в перечне нет — %d" % len(пр))
+            a("")
+            for p in пр:
+                a("**%s** (%s). %s" % (p.get("тема", "?"), p.get("обязательность", ""),
+                                       p.get("о_чём", "")))
+                a("")
+                a("*Источник: %s*" % p.get("источник", ""))
+                a("")
+        сп = d.get("противоречия") or []
+        if сп:
+            a("### Противоречия — %d" % len(сп))
+            a("")
+            for c in сп:
+                a("- %s" % json.dumps(c, ensure_ascii=False)
+                  if not isinstance(c, dict) else
+                  "- **%s.** %s" % (c.get("тема", "?"), c.get("суть") or c.get("что_говорит") or ""))
+            a("")
+        for z in (d.get("замечания") or []):
+            a("> %s" % z)
+            a("")
+    return "\n".join(out) + "\n"
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("каталог")
+    ap.add_argument("--out-json", default=str(ROOT / "docs" / "its-verification.json"))
+    ap.add_argument("--out-md", default=str(ROOT / "docs" / "its-verification.md"))
+    ap.add_argument("--force", action="store_true")
+    args = ap.parse_args()
+
+    v, problems = merge(args.каталог)
+    for p in problems:
+        print("[замечание] %s" % p)
+    if problems and not args.force:
+        print("\nзамечаний: %d. Файл не записан." % len(problems))
+        raise SystemExit(1)
+
+    Path(args.out_json).write_text(json.dumps(v, ensure_ascii=False, indent=2) + "\n",
+                                   encoding="utf-8", newline="\n")
+    Path(args.out_md).write_text(as_markdown(v), encoding="utf-8", newline="\n")
+    print("разделов: %d | пробелов: %d | противоречий: %d | замечаний: %d"
+          % (v["разделов"], v["пробелов_всего"], v["противоречий_всего"], len(problems)))
+    for k, n in v["исходы_тем"].items():
+        print("  %-14s %3d" % (k, n))
+    print("записано: %s, %s" % (args.out_json, args.out_md))
+
+
+if __name__ == "__main__":
+    main()
