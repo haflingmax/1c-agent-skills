@@ -61,13 +61,20 @@ if ($Env -eq 'claude') {
   # проверяется совпадение по хвосту, а не по точному имени.
   $navyk = $false
   $questions = 0
+  $names = @()
   foreach ($line in ($txt -split "`r?`n")) {
     $line = $line.Trim()
     if (-not $line) { continue }
     try { $evt = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
     if ($evt.type -eq 'tool_use' -and $evt.part.tool -eq 'skill') {
       $name = [string]$evt.part.state.input.name
-      if ($name -match '(^|:)(developing-1c-configurations|1c-build-and-db)$') { $navyk = $true }
+      if ($name -match '(^|:)(developing-1c-configurations|1c-build-and-db)$') {
+        $navyk = $true
+        # Имя нужно отдельно от признака: «сработал хоть какой-то навык»
+        # и «сработал нужный» — разные вопросы, и при выборе между вариантами
+        # определения раздела ответ даёт только второй.
+        $names += ($name -replace '^.*:', '')
+      }
     }
     if ($evt.type -eq 'text' -and $evt.part.text) {
       $questions += ([regex]::Matches($evt.part.text, '\?')).Count
@@ -79,10 +86,12 @@ if ($Env -eq 'claude') {
   $navyk = [bool]($txt -match 'developing-1c-configurations|1c-build-and-db')
   $questions = ([regex]::Matches($txt, '\?')).Count
 }
+if ($null -eq $names) { $names = @() }
 [pscustomobject]@{
   Среда    = $Env
   Задача   = $Prompt.Substring(0, [Math]::Min(55, $Prompt.Length))
   Навык    = $navyk
+  Навыки   = (($names | Select-Object -Unique) -join ', ')
   Вопросов = $questions
   Журнал   = $log
 }
