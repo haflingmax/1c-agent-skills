@@ -88,6 +88,35 @@ BARE_KEY_MODES = {"UsePrivilegedMode": "ENTERPRISE"}
 
 MODE_ORDER = ["CREATEINFOBASE", "DESIGNER", "ENTERPRISE", "OLE"]
 
+# M-4. У четырёх ключей поле arg было пустым, хотя источник аргумент
+# документирует. Два из них (/UseTemplate, /AddToList) чинятся данными:
+# их аргумент стоит в синопсисе шаблона 7.2.3, и parse_createinfobase_template()
+# теперь его оттуда берёт, а не выбрасывает.
+#
+# Два оставшихся достать надёжно НЕ выходит, и это записано здесь поимённо,
+# а не обойдено молчанием. В разделах 7.3.1 и 7.3.2 их синопсис — голое имя
+# ключа без единой угловой скобки; аргумент описан только прозой следующего
+# абзаца. Проза — не синопсисная форма: превратить «Позволяет задать строку
+# соединения с информационной базой целиком» в значение поля arg значит
+# ВЫДУМАТЬ форму, которой в источнике нет. В наборе, где блокировать
+# разрешено только доказанное, это хуже, чем честно назвать пробел.
+#
+# Поэтому такие ключи получают отдельное поле arg_прозой — цитату источника.
+# На разбор командной строки оно не влияет: absorbs_glued_tail() смотрит
+# только на arg и glued, и поведение проверяльщика для этих ключей остаётся
+# прежним (проверено: /IBConnectionString "File=…" — замечаний нет, код 0).
+ARG_ONLY_IN_PROSE = {
+    "/IBConnectionString": (
+        "7.3.1: «Позволяет задать строку соединения с информационной базой "
+        "целиком в том виде, в котором ее возвращает функция "
+        "СтрокаСоединенияИнформационнойБазы()». Синопсис — голое имя ключа, "
+        "угловых скобок в источнике нет"),
+    "/AccessToken": (
+        "7.3.2: «Позволяет указать JWT для выполнения аутентификации "
+        "пользователя». Синопсис — голое имя ключа, угловых скобок в "
+        "источнике нет"),
+}
+
 TEMPLATES = [
     "1cv8 CREATEINFOBASE <строка соединения> [/AddToList [<имя ИБ>]] "
     "[/UseTemplate <имя файла шаблона>] [/Out <имя файла>] [/L<код языка>] "
@@ -221,19 +250,78 @@ def parse_table_style(blocks):
     return entries
 
 
+def bracket_groups(template):
+    """Содержимое квадратных групп верхнего уровня, со счётчиком вложенности.
+
+    «[/AddToList [<имя ИБ>]] [/Out <имя файла>]» даёт
+    ['/AddToList [<имя ИБ>]', '/Out <имя файла>'].
+    """
+    out = []
+    depth = 0
+    start = None
+    for i, ch in enumerate(template):
+        if ch == "[":
+            if depth == 0:
+                start = i + 1
+            depth += 1
+        elif ch == "]":
+            depth -= 1
+            if depth == 0 and start is not None:
+                out.append(template[start:i])
+                start = None
+            elif depth < 0:
+                depth = 0
+    return out
+
+
 def parse_createinfobase_template(text):
     """7.2.3 не документирует ключи построчно — только шаблон синтаксиса.
 
     Каждый /Ключ, упомянутый в шаблоне, допустим и в режиме CREATEINFOBASE.
+    Возвращает [(имя, аргумент), ...] и сам шаблон.
+
+    M-4: раньше отсюда брались только имена, и аргумент, стоящий в шаблоне
+    прямо за ключом («[/UseTemplate <имя файла шаблона>]»), выбрасывался —
+    у /UseTemplate и /AddToList поле arg оставалось пустым, и
+    absorbs_glued_tail() относил их к тому же классу, что /NoProxy
+    («аргумента нет вовсе»).
+
+    M-5: раньше, если регулярка не находила шаблон, функция МОЛЧА брала
+    TEMPLATES[0] — зашитую копию. Сегодня результат совпал бы, но изменение
+    формата выгрузки оказалось бы замаскировано вместо того, чтобы быть
+    названным. Теперь она падает так же, как load_source_text(): в наборе,
+    который лечится от «заявление шире доказательства», тихий откат — тот же
+    дефект в профиль.
     """
     m = re.search(r"CREATEINFOBASE\s+<строка соединения>.*?/DumpResult[^\]]*\]", text)
-    template = m.group(0) if m else TEMPLATES[0]
-    names = []
-    for km in re.finditer(r"/([A-Za-z@][A-Za-z0-9_]*)", template):
+    if not m:
+        fail(
+            "[ошибка] в источнике %s не найден шаблон 7.2.3 "
+            "«CREATEINFOBASE <строка соединения> … /DumpResult …».\n"
+            "Раньше здесь молча подставлялась зашитая копия TEMPLATES[0], и "
+            "изменение формата выгрузки маскировалось вместо того, чтобы быть "
+            "названным. Собирать каталог не из чего: скрипт останавливается."
+            % SRC
+        )
+    template = m.group(0)
+
+    # Аргумент ключа берётся из ЕГО СОБСТВЕННОЙ квадратной группы, а не
+    # «до следующего ключа»: второе цепляет закрывающие скобки соседей и
+    # портит уже верные значения (у /L получалось «<код языка>] [» вместо
+    # «<код языка>»). Группы разбираются со счётчиком вложенности —
+    # «[/AddToList [<имя ИБ>]]» вложена, и обрывать её по первому «]» нельзя.
+    entries = []
+    seen = set()
+    for group in bracket_groups(template):
+        km = re.match(r"\s*/([A-Za-z@][A-Za-z0-9_]*)", group)
+        if not km:
+            continue
         name = "/" + km.group(1)
-        if name not in names:
-            names.append(name)
-    return names, template
+        if name in seen:
+            continue
+        seen.add(name)
+        entries.append((name, group[km.end():].strip()))
+    return entries, template
 
 
 def merge_modes(mode_tags):
@@ -248,10 +336,10 @@ def build_catalog():
 
     glued = find_glued(blocks)
     table_entries = parse_table_style(blocks)
-    createinfobase_names, _ = parse_createinfobase_template(text)
+    createinfobase_entries, _ = parse_createinfobase_template(text)
 
-    for name in createinfobase_names:
-        table_entries.setdefault(name, []).append(("7.2.3", "CREATEINFOBASE", ""))
+    for name, arg in createinfobase_entries:
+        table_entries.setdefault(name, []).append(("7.2.3", "CREATEINFOBASE", arg))
 
     old_glosses = {}
     if DST.exists():
@@ -285,6 +373,8 @@ def build_catalog():
             "section": sections,
             "glued": name in glued,
         }
+        if name in ARG_ONLY_IN_PROSE:
+            entry["arg_прозой"] = ARG_ONLY_IN_PROSE[name]
         if name in old_glosses:
             entry["gloss"] = old_glosses[name]
         keys[name] = entry
