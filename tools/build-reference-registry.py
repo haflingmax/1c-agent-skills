@@ -1,11 +1,11 @@
-"""Механический слой описи переноса (этап ПЕРЕНОС-1).
+"""Механический слой описи референсных наборов (этап РАЗБОР-1а).
 
 Собирает реестр навыков двух референсных наборов под MIT. Извлекается только
 то, что не требует суждения: путь, имя и описание из фронтматтера, объём,
 состав каталога навыка, связь с одноимённым навыком другого набора.
 
 Чего здесь НЕТ и быть не должно: выжимки содержания, отнесения к одному из
-16 наших разделов, и тем более вердикта «переносить или нет». Это работа
+16 наших разделов, и тем более вердикта о судьбе объекта. Это работа
 читающего слоя и следующего этапа. Механический слой ценен ровно тем, что
 его нельзя выдумать: каждое поле перепроверяется открытием файла по пути.
 
@@ -18,7 +18,7 @@ cc-1c-skills и на va-ai того же автора. Поэтому имена
 «cf-edit» первого набора и «1c-cf-edit» второго — две версии одного, а не
 два независимых источника.
 
-Запуск: PYTHONIOENCODING=utf-8 python tools/build-transfer-registry.py
+Запуск: PYTHONIOENCODING=utf-8 python tools/build-reference-registry.py
 """
 import argparse
 import json
@@ -181,7 +181,7 @@ def build(ref_root):
     парных = sum(1 for s in навыки if s["пара"])
 
     return {
-        "что_это": "Механическая опись референсных наборов, этап ПЕРЕНОС-1. "
+        "что_это": "Механическая опись референсных наборов, этап РАЗБОР-1а. "
                    "Ни выжимки, ни отнесения к разделу, ни вердикта здесь нет.",
         "наборы": наборы,
         "всего_навыков": len(навыки),
@@ -204,21 +204,21 @@ def as_markdown(reg, reading=None):
     reading = reading or {}
     L = []
     a = L.append
-    a("# Опись референсных наборов (ПЕРЕНОС-1)")
+    a("# Опись референсных наборов (РАЗБОР-1а)")
     a("")
-    a("Порождается `tools/build-transfer-registry.py` из `_ref/` под gitignore.")
+    a("Порождается `tools/build-reference-registry.py` из `_ref/` под gitignore.")
     a("Правится не руками, а пересборкой.")
     a("")
     if reading:
         a("Два слоя. **Механический** — из файлов, воспроизводится побайтно.")
         a("**Читающий** — суждение агентов-читателей, лежит в")
-        a("`docs/transfer-reading.json` и проверяется на входе:")
+        a("`docs/reference-reading.json` и проверяется на входе:")
         a("каждая запись опирается на цитату с путём и строкой.")
     else:
         a("**Только механический слой.** Читающий ещё не сведён.")
     a("")
-    a("**Решения «переносить или нет» здесь нет и не будет.** Опись отвечает")
-    a("на вопрос «что есть», решает этап ПЕРЕНОС-2, попунктно.")
+    a("**Решения о судьбе объекта здесь нет и не будет.** Опись отвечает")
+    a("на вопрос «что есть», решает этап РАЗБОР-2, попунктно.")
     a("")
     a("## Источники")
     a("")
@@ -289,9 +289,9 @@ def _by_section(reg, reading):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ref", default=str(ROOT / "_ref"))
-    ap.add_argument("--out-json", default=str(ROOT / "docs" / "transfer-registry.json"))
-    ap.add_argument("--out-md", default=str(ROOT / "docs" / "transfer-registry.md"))
-    ap.add_argument("--reading", default=str(ROOT / "docs" / "transfer-reading.json"),
+    ap.add_argument("--out-json", default=str(ROOT / "docs" / "reference-registry.json"))
+    ap.add_argument("--out-md", default=str(ROOT / "docs" / "reference-registry.md"))
+    ap.add_argument("--reading", default=str(ROOT / "docs" / "reference-reading.json"),
                     help="читающий слой; его отсутствие не ошибка")
     args = ap.parse_args()
 

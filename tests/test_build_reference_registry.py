@@ -1,11 +1,11 @@
-"""Регрессия механического слоя описи переноса (ПЕРЕНОС-1).
+"""Регрессия механического слоя описи референсов (РАЗБОР-1а).
 
 Слой механический — значит он не имеет права на суждение. Всё, что здесь
 проверяется, извлекается из файлов референсных наборов и воспроизводится
 перезапуском. Выжимка содержания и отнесение к разделу — читающий слой,
 он в этих тестах не участвует.
 
-Запуск: python -m pytest tests/test_build_transfer_registry.py -v
+Запуск: python -m pytest tests/test_build_reference_registry.py -v
 """
 import importlib.util
 import json
@@ -16,12 +16,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "tools" / "build-transfer-registry.py"
+SCRIPT = ROOT / "tools" / "build-reference-registry.py"
 REF = ROOT / "_ref"
 
-spec = importlib.util.spec_from_file_location("build_transfer_registry", SCRIPT)
+spec = importlib.util.spec_from_file_location("build_reference_registry", SCRIPT)
 mod = importlib.util.module_from_spec(spec)
-sys.modules["build_transfer_registry"] = mod
+sys.modules["build_reference_registry"] = mod
 spec.loader.exec_module(mod)
 
 has_ref = REF.is_dir()

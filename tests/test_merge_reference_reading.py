@@ -1,11 +1,11 @@
-"""Регрессия сведения читающего слоя описи переноса (ПЕРЕНОС-1).
+"""Регрессия сведения читающего слоя описи референсов (РАЗБОР-1а).
 
 Читающий слой — суждение агентов-читателей, воспроизвести его перезапуском
 нельзя. Поэтому он проверяется на входе, и здесь проверяется сама проверка:
 она обязана ловить незаполненное, выдуманный раздел, цитату без опоры,
 молчание о разнице версий и просочившийся вердикт.
 
-Запуск: python -m pytest tests/test_merge_transfer_reading.py -v
+Запуск: python -m pytest tests/test_merge_reference_reading.py -v
 """
 import importlib.util
 import json
@@ -16,11 +16,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "tools" / "merge-transfer-reading.py"
+SCRIPT = ROOT / "tools" / "merge-reference-reading.py"
 
-spec = importlib.util.spec_from_file_location("merge_transfer_reading", SCRIPT)
+spec = importlib.util.spec_from_file_location("merge_reference_reading", SCRIPT)
 mod = importlib.util.module_from_spec(spec)
-sys.modules["merge_transfer_reading"] = mod
+sys.modules["merge_reference_reading"] = mod
 spec.loader.exec_module(mod)
 
 

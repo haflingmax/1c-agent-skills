@@ -1,6 +1,6 @@
-"""Сведение читающего слоя описи переноса (этап ПЕРЕНОС-1).
+"""Сведение читающего слоя описи референсов (этап РАЗБОР-1а).
 
-Механический слой (`docs/transfer-registry.json`) собирается из файлов и
+Механический слой (`docs/reference-registry.json`) собирается из файлов и
 воспроизводится побайтно. Читающий слой — суждение: о чём навык на самом
 деле и к какому из наших 16 разделов относится. Воспроизвести его нельзя,
 поэтому он живёт отдельным файлом и проходит проверку на входе.
@@ -11,13 +11,13 @@
   - назван ли раздел из списка, а не выдуманный;
   - есть ли опора — цитата с путём и строкой, и ведёт ли путь к живому файлу;
   - для парных единиц — сказано ли, чем версии различаются;
-  - не просочился ли вердикт «переносить или нет».
+  - не просочился ли вердикт о судьбе объекта.
 
 Последнее — не придирка. Опись обязана прийти к следующему этапу
 нейтральной: читатель, который заодно советует, начинает подгонять описание
 под свой совет, и то, что он мысленно отверг, описывается тусклее.
 
-Запуск: PYTHONIOENCODING=utf-8 python tools/merge-transfer-reading.py <каталог с out-*.json>
+Запуск: PYTHONIOENCODING=utf-8 python tools/merge-reference-reading.py <каталог с out-*.json>
 """
 import argparse
 import json
@@ -148,7 +148,7 @@ def merge(reading_dir, registry_path, ref_root):
     registry_path = Path(registry_path)
     if not registry_path.is_file():
         fail("[ошибка] нет %s — сначала соберите механический слой:\n"
-             "  python tools/build-transfer-registry.py" % registry_path)
+             "  python tools/build-reference-registry.py" % registry_path)
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     units = load_units(registry)
 
@@ -188,7 +188,7 @@ def merge(reading_dir, registry_path, ref_root):
 
     records.sort(key=lambda r: r.get("единица", ""))
     return {
-        "что_это": "Читающий слой описи переноса. Суждение, а не выгрузка: "
+        "что_это": "Читающий слой описи референсов. Суждение, а не выгрузка: "
                    "воспроизвести перезапуском нельзя, поэтому проверяется на входе.",
         "единиц": len(records),
         "вне_раскладки": sum(1 for r in records if r.get("раздел") == OUTSIDE),
@@ -202,9 +202,9 @@ def merge(reading_dir, registry_path, ref_root):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("reading_dir", help="каталог с out-*.json от читателей")
-    ap.add_argument("--registry", default=str(ROOT / "docs" / "transfer-registry.json"))
+    ap.add_argument("--registry", default=str(ROOT / "docs" / "reference-registry.json"))
     ap.add_argument("--ref", default=str(ROOT / "_ref"))
-    ap.add_argument("--out", default=str(ROOT / "docs" / "transfer-reading.json"))
+    ap.add_argument("--out", default=str(ROOT / "docs" / "reference-reading.json"))
     ap.add_argument("--force", action="store_true",
                     help="записать несмотря на замечания (замечания всё равно печатаются)")
     args = ap.parse_args()
