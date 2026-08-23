@@ -340,3 +340,24 @@ def test_core_names_collected_skills_inline():
     assert named == collected, (
         "строка состава в ядре разошлась с skills/: названо %s, лежит %s"
         % (sorted(named), sorted(collected)))
+
+
+def test_readme_marks_unverified_install_paths():
+    """M-8: README обещал пути, которых никто не пробовал.
+
+    Отчёт задачи 4 честно писал, что прогона по Copilot, Gemini и Cursor не
+    было, — а таблица установки в README подавала все строки одинаково.
+    Для файла, который читает устанавливающий, это утверждение о чужой среде.
+    Набор помечает непроверенное везде, кроме этого места.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    rows = [l for l in readme.splitlines()
+            if l.startswith("|") and "skills/" in l]
+    assert rows, "таблица ручной установки потерялась"
+    for row in rows:
+        assert "да" in row.lower() or "нет" in row.lower(), (
+            "строка таблицы установки без пометки о проверке: %s" % row)
+    for env in ("Cursor", "Copilot"):
+        line = next((r for r in rows if env in r), None)
+        assert line and "нет" in line.lower(), (
+            "%s подан как проверенный, хотя прогона не было" % env)

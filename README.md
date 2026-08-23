@@ -4,8 +4,10 @@
 управляемые формы, запросы, права, расширения, обновление типовых.
 
 Формат — открытый стандарт [Agent Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview):
-папка с `SKILL.md`. Поэтому набор работает в Claude Code, Kilo Code, Codex, Cursor и всём
-остальном, что этот стандарт поддерживает.
+папка с `SKILL.md`. Поэтому набор годится для любой среды, которая этот стандарт
+поддерживает. Запуском проверены три: Claude Code, Kilo Code и Codex (у последнего —
+с оговоркой Д-11, см. «Особенности сред»). Cursor, Copilot и Gemini поддерживают формат
+по своей документации, но нами не проверялись.
 
 ## Состояние
 
@@ -50,12 +52,26 @@ codex plugin add 1c-agent-skills@haflingmax-1c
 
 Если плагины не используются — скопировать содержимое `skills/` в каталог навыков среды.
 
-| Среда | Глобально | В проекте |
-|---|---|---|
-| Claude Code | `~/.claude/skills/` | `.claude/skills/` |
-| Kilo Code | `~/.config/kilo/skills/` | `.kilo/skills/` |
-| Codex, Copilot, Gemini | `~/.agents/skills/` | `.agents/skills/` |
-| Cursor | `~/.cursor/skills/` | `.cursor/skills/` |
+| Среда | Глобально | В проекте | Проверено запуском |
+|---|---|---|---|
+| Claude Code | `~/.claude/skills/` | `.claude/skills/` | глобальный путь — да; проектный — нет |
+| Kilo Code | `~/.config/kilo/skills/` | `.kilo/skills/` | глобальный путь — да; проектный — нет |
+| Codex | `~/.agents/skills/` | `.agents/skills/` | глобальный путь — да; проектный — нет |
+| Copilot, Gemini | `~/.agents/skills/` | `.agents/skills/` | **нет, только по документации** |
+| Cursor | `~/.cursor/skills/` | `.cursor/skills/` | **нет, только по документации** |
+
+Колонка «Проверено запуском» — не формальность. «Да» означает, что набор туда положен
+и агент в этой среде поднял навык: `~/.claude/skills/` и `~/.config/kilo/skills/` —
+`tools/install-skills.ps1` плюс замер срабатывания
+([docs/evidence/2026-08-22-trigger-rate.md](docs/evidence/2026-08-22-trigger-rate.md)),
+`~/.agents/skills/` — приёмка
+([docs/evidence/2026-08-22-acceptance.md](docs/evidence/2026-08-22-acceptance.md)).
+
+Остальные ячейки взяты из документации соответствующих сред и **прогоном не
+подтверждены**: Copilot, Gemini и Cursor на машине разработки набора недоступны,
+проектные каталоги не проверялись ни в одной среде. Пути в них правдоподобны, но
+это утверждение о чужой среде, а не наш замер — если у вас не подхватилось,
+дело может быть в них, а не в наборе.
 
 ```powershell
 Copy-Item skills/* "$env:USERPROFILE/.claude/skills/" -Recurse -Force

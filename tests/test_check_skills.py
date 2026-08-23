@@ -116,3 +116,49 @@ def test_real_repo_skills_have_no_size_warnings():
         errors, warnings = mod.check(skill_md)
         size_warnings = [w for w in warnings if "токен" in w]
         assert not size_warnings, "%s: %r" % (skill_md, size_warnings)
+
+
+# --- M-6: спецификация шире контракта Codex -------------------------------
+
+def _write_skill_with_frontmatter(tmp_path, folder, frontmatter, body_text="Тело навыка."):
+    d = tmp_path / folder
+    d.mkdir()
+    (d / "SKILL.md").write_text(
+        "---\n%s\n---\n\n%s" % (frontmatter, body_text), encoding="utf-8")
+    return d / "SKILL.md"
+
+
+def test_compatibility_is_legal_but_warns_about_codex(tmp_path):
+    """M-6: поле законно по спецификации и отвергается валидатором Codex.
+
+    Проверено запуском официального quick_validate.py 23.08.2026: копия
+    поставляемого навыка с добавленным `compatibility` даёт «Unexpected
+    key(s) in SKILL.md frontmatter: compatibility. Allowed properties are:
+    allowed-tools, description, license, metadata, name», код 1; тот же
+    навык без поля — «Skill is valid!», код 0.
+
+    Блокировать нельзя — поле законно по спецификации, а правило 11
+    запрещает запрещать не-неверное. Молчать тоже нельзя: добавивший
+    сломает Codex и узнает об этом от Codex, а не от нас.
+    """
+    md = _write_skill_with_frontmatter(
+        tmp_path, "demo",
+        "name: demo\ndescription: Демо-навык. Применяется, когда нужно демо.\n"
+        "compatibility: 1С:Предприятие 8.3")
+    bad, warn = mod.check(md)
+    assert not any("compatibility" in b for b in bad), bad
+    assert any("compatibility" in w and "Codex" in w for w in warn), warn
+
+
+def test_codex_field_set_is_narrower_than_spec():
+    """Контракт Codex — подмножество спецификации, и разница именно в compatibility."""
+    assert mod.CODEX_FRONTMATTER_FIELDS < mod.SPEC_FIELDS
+    assert mod.SPEC_FIELDS - mod.CODEX_FRONTMATTER_FIELDS == {"compatibility"}
+
+
+def test_plain_frontmatter_warns_about_nothing(tmp_path):
+    md = _write_skill_with_frontmatter(
+        tmp_path, "demo",
+        "name: demo\ndescription: Демо-навык. Применяется, когда нужно демо.")
+    bad, warn = mod.check(md)
+    assert not any("Codex" in w for w in warn), warn

@@ -24,6 +24,26 @@ SKILLS = ROOT / "skills"
 # argument-hint сюда НЕ входит: это поле слэш-команд Claude Code, а не навыка.
 SPEC_FIELDS = {"name", "description", "license", "allowed-tools", "metadata", "compatibility"}
 
+# M-6 финального ревью: СПЕЦИФИКАЦИЯ ШИРЕ КОНТРАКТА CODEX, и разойтись они
+# могут молча. Официальный валидатор Codex (quick_validate.py из bundled-навыка
+# skill-creator) знает ровно пять полей — compatibility в их число не входит.
+# Проверено запуском 23.08.2026 на копии поставляемого навыка с добавленным
+# полем:
+#
+#   quick_validate.py <копия с compatibility> ->
+#       «Unexpected key(s) in SKILL.md frontmatter: compatibility.
+#        Allowed properties are: allowed-tools, description, license,
+#        metadata, name», код 1
+#   quick_validate.py skills/developing-1c-configurations -> «Skill is valid!», код 0
+#
+# То есть добавивший compatibility сломает Codex, а не спецификацию, и наш
+# линтер по построению этого не увидит: он сверяется со спецификацией.
+# Поэтому поля, законные по спецификации, но отвергаемые Codex, дают
+# ПРЕДУПРЕЖДЕНИЕ с нулевым кодом — блокировать законное по спецификации поле
+# нельзя (правило 11), а молчать о том, что оно ломает вторую среду, — значит
+# повторить Н-01 в профиль.
+CODEX_FRONTMATTER_FIELDS = {"name", "description", "license", "allowed-tools", "metadata"}
+
 MIN_COMPAT = 1
 MAX_COMPAT = 500   # agentskills.io/specification: «Must be 1-500 characters if provided»
 
@@ -167,6 +187,16 @@ def check(skill_md):
     extra = set(fm) - SPEC_FIELDS
     if extra:
         bad.append("поля вне спецификации: %s" % ", ".join(sorted(extra)))
+
+    # M-6: законно по спецификации, но отвергается валидатором Codex.
+    codex_extra = (set(fm) & SPEC_FIELDS) - CODEX_FRONTMATTER_FIELDS
+    if codex_extra:
+        warn.append(
+            "%s — законное поле спецификации, но официальный валидатор Codex "
+            "его отвергает («Unexpected key(s) in SKILL.md frontmatter», "
+            "проверено запуском): в Codex навык перестанет ставиться. "
+            "Не блокирует — решай по тому, нужен ли Codex"
+            % ", ".join(sorted(codex_extra)))
 
     if "compatibility" in fm:
         compat = fm["compatibility"]
