@@ -135,3 +135,50 @@ def test_measure_trigger_write_preserves_line_ending():
     out = re.sub(pattern, "description: новое", sample)
     assert out == "---\r\nname: x\r\ndescription: новое\r\n---\r\nтело\r\n", (
         "регулярка %r портит перевод строки: %r" % (pattern, out))
+
+
+# --- M-2: незаявленных внешних зависимостей быть не должно ------------------
+
+def _third_party_imports(paths):
+    """Импорты, которых нет ни в стандартной библиотеке, ни в самом наборе."""
+    own = {"check_1c_cli", "check_skills", "check_sources", "check_manifests",
+           "build_cli_keys", "check_1c_cli_strengths"}
+    found = {}
+    for p in paths:
+        text = p.read_text(encoding="utf-8")
+        mods = set(re.findall(r"^\s*import\s+([A-Za-z_][\w]*)", text, re.M))
+        mods |= set(re.findall(r"^\s*from\s+([A-Za-z_][\w]*)", text, re.M))
+        for m in mods:
+            if m in sys.stdlib_module_names or m in own:
+                continue
+            found.setdefault(m, []).append(p.relative_to(ROOT).as_posix())
+    return found
+
+
+def test_external_dependencies_are_declared_in_readme():
+    """M-2: PyYAML импортировался, но нигде не был объявлен.
+
+    Воспроизведено: ни requirements.txt, ни pyproject.toml, ни упоминания в
+    README (`git grep -in pyyaml 46a2299` — пусто), при этом с подменённым
+    модулем `yaml` вся сборка тестов падает с кодом 2
+    («ImportError: No module named yaml»), и «зелёный pytest» на чистой
+    машине недостижим.
+
+    Сторожим класс, а не одну библиотеку: новая внешняя зависимость обязана
+    быть названа в README, иначе тест падает.
+    """
+    paths = sorted((ROOT / "tools").glob("*.py")) + sorted((ROOT / "tests").glob("*.py")) \
+        + sorted((ROOT / "skills").rglob("scripts/*.py"))
+    external = _third_party_imports(paths)
+    readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
+    undeclared = {m: files for m, files in external.items()
+                  if m.lower() not in readme and not (m.lower() == "yaml" and "pyyaml" in readme)}
+    assert not undeclared, (
+        "внешние зависимости не объявлены в README: %s" % undeclared)
+
+
+def test_skills_themselves_need_no_external_packages():
+    """Навык, который ставит пользователь, обходится стандартной библиотекой."""
+    external = _third_party_imports(sorted((ROOT / "skills").rglob("*.py")))
+    assert not external, (
+        "внутри skills/ появилась внешняя зависимость: %s" % external)

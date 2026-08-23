@@ -144,11 +144,23 @@ Codex (`.codex-plugin/plugin.json` — поля, которые официаль
 **настоящим `yaml.safe_load`**, а не регуляркой. Регулярка проходит мимо двоеточия внутри
 описания, которое YAML считает началом вложенного отображения.
 
-Ему нужен `PyYAML`:
+### Зависимости
+
+Сами навыки не требуют ничего: `SKILL.md`, справочники и `check-1c-cli.py`
+обходятся стандартной библиотекой Python. Пакеты нужны только тем, кто дорабатывает
+набор:
 
 ```powershell
-pip install pyyaml
+pip install pyyaml pytest
 ```
+
+- `pyyaml` — `tools/check-manifests.py` и `tests/test_check_manifests.py`. Без него
+  `python -m pytest tests/ -q` не соберётся вовсе (код 2, `ImportError: No module named
+  yaml`), а сам проверяльщик упадёт на импорте;
+- `pytest` — регресс в `tests/`.
+
+Список сторожит `tests/test_tools_write_guard.py`: новая внешняя зависимость роняет
+прогон, пока не названа здесь.
 
 Правило набора: **любой инструмент, который пишет в `skills/`, заканчивается прогоном
 `tools/check-manifests.py` и падает при ненулевом коде.** Так устроены
