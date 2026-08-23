@@ -71,14 +71,36 @@
 # передача нескольких формулировок одним вызовом через границу
 # Bash → PowerShell склеивается в одну строку по запятой и портит данные.
 
+# C-1: текста описания в этом скрипте больше нет ни в каком виде. Раньше здесь
+# стояла константа $NewDescription, и строка «правка description» безусловно
+# писала её в SKILL.md. Константа разошлась с поставляемым описанием (в наборе
+# тире, в константе двоеточие) и при первом же штатном прогоне вернула бы в
+# набор фронтматтер, который не разбирается YAML: ровно та Н-01, ради которой
+# заведён tools/check-manifests.py. Заодно срез «после» мерил бы формулировку,
+# которой в наборе нет, — и хэши М-18 не с чем было бы сверять.
+#
+# Теперь «после»-формулировка приходит снаружи: -NewDescription '<текст>' либо
+# -NewDescriptionFile <путь>. Расходиться нечему — расходиться больше не с чем.
+#
+# Правило набора, заведённое этой же находкой: ЛЮБОЙ инструмент, который пишет
+# в skills/, обязан заканчиваться прогоном tools/check-manifests.py и падать
+# при ненулевом коде. Здесь это Set-SkillDescription: пишет, проверяет, при
+# ненуле возвращает файл в исходное состояние и роняет прогон.
 param(
   [string]$EvidenceFile = (Join-Path $PSScriptRoot '..\docs\evidence\2026-08-22-trigger-rate.md'),
   [string]$SkillFile    = (Join-Path $PSScriptRoot '..\skills\developing-1c-configurations\SKILL.md'),
   [string]$ProgressFile = (Join-Path $env:TEMP 'trigger-measure-progress.jsonl'),
+  [string]$NewDescription = '',
+  [string]$NewDescriptionFile = '',
+  # Записать «после»-формулировку в SKILL.md, проверить манифесты и выйти —
+  # без прогонов агентов. Нужен, чтобы саму запись можно было проверить
+  # отдельно от многочасового замера.
+  [switch]$ApplyDescriptionOnly,
   [switch]$DryRun
 )
 
-$NewDescription = 'Разработка конфигураций 1С:Предприятие 8.3 по исходникам — от планирования доработки до кода. Применяется, когда ответ должен соответствовать стандартам 1С и соглашениям типовых конфигураций, а не общему знанию языка: справочник, документ, регистр, форма, запрос, отчёт, обработка, роль, расширение, БСП, СКД, файлы .bsl, .epf, .cf.'
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$CheckManifests = Join-Path $RepoRoot 'tools\check-manifests.py'
 
 # Ожидание = $true: навык обязан подняться (область набора).
 # Ожидание = $false: навык подниматься не должен (чужая область — другой
@@ -114,6 +136,60 @@ function Get-DescHash([string]$text) {
   $bytes = [System.Text.Encoding]::UTF8.GetBytes($text)
   $sha = [System.Security.Cryptography.SHA256]::Create()
   -join ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') })
+}
+
+function Resolve-NewDescription {
+  if ($NewDescriptionFile) {
+    if (-not (Test-Path $NewDescriptionFile)) {
+      throw "файл с «после»-формулировкой не найден: $NewDescriptionFile"
+    }
+    return ([System.IO.File]::ReadAllText($NewDescriptionFile, [System.Text.Encoding]::UTF8)).Trim()
+  }
+  if ($NewDescription) { return $NewDescription.Trim() }
+  throw @'
+не задана «после»-формулировка description. Замер «переписать и померить»
+берёт её только снаружи: -NewDescription '<текст>' либо -NewDescriptionFile
+<путь>. Константы с текстом описания в скрипте нет намеренно (C-1): она
+разошлась с поставляемым SKILL.md и возвращала в набор двоеточие, ломающее
+YAML-фронтматтер.
+'@
+}
+
+# Пишет description в SKILL.md и тут же проверяет манифесты. Ненулевой код —
+# файл возвращается в исходное состояние, прогон падает. check-skills.py на
+# такую порчу не годится: он разбирает фронтматтер регуляркой и молча проходит
+# мимо двоеточия (проверено: на испорченном файле он вернул 0, а
+# check-manifests.py — 1).
+function Set-SkillDescription([string]$path, [string]$desc) {
+  $before = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+  # $ в тексте описания экранируется: в -replace он значил бы ссылку на группу.
+  $safe = $desc.Replace('$', '$$$$')
+  # [^\r\n]* вместо .* : в многострочном режиме .NET «.» съедает \r перед \n,
+  # и запись молча превращала CRLF этой строки в LF. Инструмент, пишущий
+  # в skills/, не имеет права менять в файле ничего, кроме самого описания.
+  $updated = $before -replace '(?m)^description:[^\r\n]*', ("description: " + $safe)
+  [System.IO.File]::WriteAllText($path, $updated, (New-Object System.Text.UTF8Encoding($false)))
+
+  $out = (& python $CheckManifests 2>&1 | Out-String).Trim()
+  $code = $LASTEXITCODE
+  Log-Progress @{ event = 'check-manifests'; exit = $code; output = $out; time = (Get-Date).ToString('s') }
+  if ($code -ne 0) {
+    [System.IO.File]::WriteAllText($path, $before, (New-Object System.Text.UTF8Encoding($false)))
+    throw ("запись description отвергнута tools/check-manifests.py (код $code), файл возвращён в исходное состояние:`n" + $out)
+  }
+  return $out
+}
+
+# Формулировку разрешаем ДО стадии «до»: иначе о пропущенном параметре скрипт
+# узнал бы через час прогонов.
+$newDesc = Resolve-NewDescription
+
+if ($ApplyDescriptionOnly) {
+  $checkOut = Set-SkillDescription $SkillFile $newDesc
+  Log-Progress @{ event = 'apply-only'; hash = (Get-DescHash $newDesc); len = $newDesc.Length; time = (Get-Date).ToString('s') }
+  $checkOut
+  "description записан в $SkillFile и принят check-manifests.py (код 0)"
+  return
 }
 
 function Run-Stage([string]$label) {
@@ -161,14 +237,13 @@ Log-Progress @{ event = 'stage-done'; stage = 'до'; time = (Get-Date).ToString
 
 # --- правка description ---
 if (-not $DryRun) {
-  $newText = $oldText -replace '(?m)^description:.*$', ("description: " + $NewDescription)
-  [System.IO.File]::WriteAllText($SkillFile, $newText, (New-Object System.Text.UTF8Encoding($false)))
-  Log-Progress @{ event = 'desc-changed'; oldLen = $oldDesc.Length; newLen = $NewDescription.Length; time = (Get-Date).ToString('s') }
+  Set-SkillDescription $SkillFile $newDesc | Out-Null
+  Log-Progress @{ event = 'desc-changed'; oldLen = $oldDesc.Length; newLen = $newDesc.Length; time = (Get-Date).ToString('s') }
 
   # --- переустановка навыков в обе среды ---
   $installOut = & powershell -NoProfile -File $install
   Log-Progress @{ event = 'install'; output = ($installOut -join ' | '); time = (Get-Date).ToString('s') }
-  Log-Progress @{ event = 'after-hash'; hash = (Get-DescHash $NewDescription); len = $NewDescription.Length; time = (Get-Date).ToString('s') }
+  Log-Progress @{ event = 'after-hash'; hash = (Get-DescHash $newDesc); len = $newDesc.Length; time = (Get-Date).ToString('s') }
 } else {
   Log-Progress @{ event = 'desc-changed-skipped-dryrun'; time = (Get-Date).ToString('s') }
 }
@@ -222,7 +297,7 @@ $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('Новая формулировка (последствие для ответа, а не тема):')
 [void]$sb.AppendLine()
 [void]$sb.AppendLine('```')
-[void]$sb.AppendLine($NewDescription)
+[void]$sb.AppendLine($newDesc)
 [void]$sb.AppendLine('```')
 [void]$sb.AppendLine()
 

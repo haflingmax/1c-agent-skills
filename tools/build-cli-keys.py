@@ -36,16 +36,24 @@
     python tools/build-cli-keys.py
 
 Печатает сверку: сколько ключей, сколько с несколькими режимами, сколько
-опций всего. Код возврата 0 — каталог собран и записан; 2 — источника нет.
+опций всего. Код возврата 0 — каталог собран, записан и принят проверкой
+манифестов; 2 — источника нет; 3 — записанное отвергнуто tools/check-manifests.py.
+
+Правило набора (находка C-1 финального ревью): любой инструмент, который
+пишет в skills/, обязан заканчиваться прогоном tools/check-manifests.py и
+падать при ненулевом коде. Причина у C-1 была не в одном скрипте, а в том,
+что записанное в skills/ никто не перечитывал.
 """
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "_its" / "cmdline" / "its-pril7-full.json"
 DST = ROOT / "skills" / "1c-build-and-db" / "scripts" / "cli-keys.json"
+CHECK_MANIFESTS = ROOT / "tools" / "check-manifests.py"
 
 # Варианты тире, которыми в источнике иногда записан дефис перед опцией:
 # – (U+2013, короткое тире), ‑ (U+2011, неразрывный дефис), − (U+2212, знак
@@ -98,6 +106,28 @@ MODES_LIST = [
 def fail(msg):
     print(msg)
     raise SystemExit(2)
+
+
+def verify_manifests():
+    """Прогоняет tools/check-manifests.py; ненулевой код — падаем.
+
+    Скрипт пишет в skills/, а значит подчиняется правилу C-1. Вызывается
+    отдельным процессом, а не импортом: проверяем ровно тот инструмент,
+    который потом позовёт человек, и ровно его код возврата.
+    """
+    proc = subprocess.run(
+        [sys.executable, str(CHECK_MANIFESTS)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    out = (proc.stdout or "") + (proc.stderr or "")
+    print(out.strip())
+    if proc.returncode != 0:
+        print(
+            "[ошибка] записанный каталог отвергнут tools/check-manifests.py "
+            "(код %d). Правило: инструмент, который пишет в skills/, "
+            "заканчивается этой проверкой." % proc.returncode
+        )
+        raise SystemExit(3)
 
 
 def load_source_text():
@@ -287,6 +317,8 @@ def main():
     DST.write_text(
         json.dumps(catalog, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
     )
+
+    verify_manifests()
 
     total_opts = sum(len(v["opts"]) for v in keys.values())
     multi_mode = sum(1 for v in keys.values() if len(v["modes"]) > 1)
