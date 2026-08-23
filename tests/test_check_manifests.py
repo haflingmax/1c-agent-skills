@@ -1,6 +1,7 @@
 """Проверка манифестов плагина и разбора фронтматтера настоящим YAML.
 
-Соответствует находкам Н-04 и Н-01 из docs/reviews/2026-08-23-core-review.md.
+Соответствует находке Н-01 и мелким М-05, М-09 из
+docs/reviews/2026-08-23-core-review.md.
 Запуск: python -m pytest tests/test_check_manifests.py -v
 """
 import json
@@ -20,7 +21,7 @@ def frontmatter(path):
 
 
 def test_frontmatter_is_valid_yaml():
-    """Н-04: фронтматтер обязан разбираться настоящим YAML, не регуляркой."""
+    """Н-01: фронтматтер обязан разбираться настоящим YAML, не регуляркой."""
     for skill_md in sorted((ROOT / "skills").rglob("SKILL.md")):
         data = yaml.safe_load(frontmatter(skill_md))
         assert isinstance(data, dict), skill_md
@@ -28,7 +29,7 @@ def test_frontmatter_is_valid_yaml():
 
 
 def test_codex_manifest_has_no_rejected_fields():
-    """Н-04: поле hooks официальный валидатор Codex отвергает."""
+    """Н-01: поле hooks официальный валидатор Codex отвергает."""
     m = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert "hooks" not in m, "поле hooks отвергается валидатором Codex"
 
