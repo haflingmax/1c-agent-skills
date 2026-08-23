@@ -68,7 +68,111 @@ def test_missing_field_is_caught(tmp_path):
 def test_empty_essence_is_caught(tmp_path):
     units = make_units(tmp_path)
     notes = mod.check_record(good(суть="   "), units, tmp_path)
-    assert any("пустая суть" in n for n in notes), notes
+    assert any("пустое поле «суть»" in n for n in notes), notes
+
+
+# --- вторая схема: опись данных (РАЗБОР-1б) --------------------------------
+#
+# Правило вердикта и разбор цитаты дались двумя раундами правок каждое.
+# Разводить их по двум скриптам значило дать им разойтись, поэтому схема
+# полей — параметр, а проверки общие. Здесь сторожится именно это.
+
+def good_data(name="cf-edit", **over):
+    rec = {
+        "единица": name,
+        "тема": "Формат XML управляемой формы.",
+        "охват": "Типы элементов, обработчики, командный интерфейс.",
+        "глубина": "справочник",
+        "на_чём_основано": "разбор конфигураций",
+        "раздел": "1c-managed-forms",
+        "почему_раздел": "документ целиком про форму.",
+        "разница_версий": "",
+        "цитата": "«версия 2.17» — cc-1c-skills/.claude/skills/cf-edit/SKILL.md:3",
+    }
+    rec.update(over)
+    return rec
+
+
+def test_data_schema_accepts_a_good_record(tmp_path):
+    units = make_units(tmp_path)
+    assert mod.check_record(good_data(), units, tmp_path, "данные") == []
+
+
+def test_data_schema_requires_its_own_fields(tmp_path):
+    """Поля описи навыков в описи данных не годятся, и наоборот."""
+    units = make_units(tmp_path)
+    notes = mod.check_record(good(), units, tmp_path, "данные")
+    assert any("нет полей" in n and "тема" in n for n in notes), notes
+
+
+@pytest.mark.parametrize("field,bad", [
+    ("глубина", "подробно"),
+    ("на_чём_основано", "из головы"),
+])
+def test_data_enums_are_closed(tmp_path, field, bad):
+    """Значение вне перечня — выдумка, даже если звучит осмысленно.
+
+    Поле «на_чём_основано» решает многое: мы обязаны опираться на ИТС,
+    и знать, что у референса выведено эмпирически, а что взято
+    из документации, — существенно. Свободный текст здесь бесполезен.
+    """
+    units = make_units(tmp_path)
+    notes = mod.check_record(good_data(**{field: bad}), units, tmp_path, "данные")
+    assert any("не из перечня" in n and field in n for n in notes), notes
+
+
+def test_enum_accepts_per_version_values(tmp_path):
+    """У парной единицы версии вправе различаться по глубине и основанию.
+
+    Живой случай: `meta-dsl-spec.md` — у cc разбор с цифрами по корпусу,
+    у ccs тот же охват подан фактами без источника. Одно значение на обе
+    версии было бы неправдой; первая редакция схемы этого не допускала.
+    """
+    units = make_units(tmp_path, paired=True)
+    rec = good_data(
+        глубина={"cc": "разбор", "ccs": "справочник"},
+        на_чём_основано={"cc": "разбор конфигураций", "ccs": "не сказано"},
+        разница_версий="cc держит 37 видов объектов, ccs — 23 без обоснования.")
+    assert mod.check_record(rec, units, tmp_path, "данные") == []
+
+
+def test_per_version_enum_still_rejects_an_invented_value(tmp_path):
+    """Объектная форма не должна прятать выдуманное значение."""
+    units = make_units(tmp_path, paired=True)
+    rec = good_data(глубина={"cc": "разбор", "ccs": "подробно"},
+                    разница_версий="есть.")
+    notes = mod.check_record(rec, units, tmp_path, "данные")
+    assert any("не из перечня" in n and "подробно" in n for n in notes), notes
+
+
+def test_citation_path_may_contain_spaces(tmp_path):
+    """Имя файла с пробелом — законный путь.
+
+    В наборах есть «обработанный промпт.md». Первая редакция регулярки
+    захватывала из него только «промпт.md» и браковала честную цитату.
+    Пробелы допускаются лишь в пути, начинающемся с имени набора, —
+    иначе регулярка съела бы полфразы.
+    """
+    units = make_units(tmp_path)
+    d = tmp_path / "cc-1c-skills" / "docs"
+    d.mkdir(parents=True)
+    (d / "обработанный промпт.md").write_text("текст", encoding="utf-8")
+    rec = good_data(цитата="«пример задачи» — cc-1c-skills/docs/обработанный промпт.md:1")
+    assert mod.check_record(rec, units, tmp_path, "данные") == []
+
+
+def test_data_schema_still_catches_a_verdict(tmp_path):
+    """Общие правила действуют в обеих схемах — в этом смысл обобщения."""
+    units = make_units(tmp_path)
+    notes = mod.check_record(
+        good_data(охват="Типы элементов; стоит взять целиком."), units, tmp_path, "данные")
+    assert any("вердикт" in n for n in notes), notes
+
+
+def test_data_schema_still_checks_the_citation(tmp_path):
+    units = make_units(tmp_path)
+    notes = mod.check_record(good_data(цитата=""), units, tmp_path, "данные")
+    assert any("нет цитаты" in n for n in notes), notes
 
 
 # --- раздел берётся из списка, а не из головы ------------------------------

@@ -35,8 +35,30 @@ SECTIONS = [
 ]
 OUTSIDE = "вне раскладки"
 
-REQUIRED = ["единица", "суть", "входы_выходы", "раздел", "почему_раздел",
-            "опора", "скрипты", "разница_версий", "цитата"]
+# Две описи — навыков (РАЗБОР-1а) и данных (РАЗБОР-1б) — спрашивают разное,
+# но проверяются одинаково. Правило вердикта и разбор цитаты дались двумя
+# раундами правок каждое; разводить их по двум скриптам значит дать им
+# разойтись. Поэтому различается только схема полей.
+SCHEMAS = {
+    "навыки": {
+        "поля": ["единица", "суть", "входы_выходы", "раздел", "почему_раздел",
+                 "опора", "скрипты", "разница_версий", "цитата"],
+        "непустое": "суть",
+        "на_вердикт": ("суть", "почему_раздел", "входы_выходы"),
+        "перечни": {},
+    },
+    "данные": {
+        "поля": ["единица", "тема", "охват", "глубина", "на_чём_основано",
+                 "раздел", "почему_раздел", "разница_версий", "цитата"],
+        "непустое": "тема",
+        "на_вердикт": ("тема", "охват", "почему_раздел"),
+        "перечни": {
+            "глубина": ["перечень", "справочник", "разбор"],
+            "на_чём_основано": ["ИТС", "разбор конфигураций", "опыт автора",
+                                "смешанно", "не сказано"],
+        },
+    },
+}
 
 # Вердикт ловится КОНСТРУКЦИЕЙ совета, а не корнем слова.
 #
@@ -62,7 +84,12 @@ VERDICT = re.compile(
 # текст сам нередко упоминает соседние файлы («см. regress.md»), и настоящий
 # источник стоит в конце. Поэтому годится, если хоть один кандидат ведёт
 # к живому файлу, а не первый попавшийся.
-CITE = re.compile(r"[\w./\\-]+\.(?:md|py|ps1|psm1|json|xml|txt|bsl|os|cmd|bat)\b")
+CITE = re.compile(
+    # Путь от корня набора: пробелы в имени законны («обработанный промпт.md»),
+    # но допускать их где угодно нельзя — иначе регулярка съест полфразы.
+    # Поэтому такой путь обязан начинаться с имени набора.
+    r"(?:cc-1c-skills|claude-code-skills-1c)[\w /.\\-]*?\.(?:md|py|ps1|psm1|json|xml|txt|bsl|os|cmd|bat)\b"
+    r"|[\w./\\-]+\.(?:md|py|ps1|psm1|json|xml|txt|bsl|os|cmd|bat)\b")
 
 
 def fail(message, code=2):
@@ -70,21 +97,33 @@ def fail(message, code=2):
     raise SystemExit(code)
 
 
-def load_units(registry):
-    """Единицы разбора: парные считаются один раз, ведущей стороной."""
-    by = {(s["набор"], s["имя"]): s for s in registry["навыки"]}
+def load_units(registry, schema="навыки"):
+    """Единицы разбора: парные считаются один раз, ведущей стороной.
+
+    Опись навыков спаривает по имени навыка, опись данных — по пути файла;
+    в остальном правило одно, и второй его копии заводить незачем.
+    """
+    if schema == "навыки":
+        rows = registry["навыки"]
+        key_of = lambda r: (r["набор"], r["имя"])
+        pair_of = lambda p: (p["набор"], p["имя"])
+    else:
+        rows = [o for o in registry["объекты"] if o["класс"] in ("docs", "rules")]
+        key_of = lambda r: (r["набор"], r["путь"])
+        pair_of = lambda p: (p["набор"], p["путь"])
+
+    by = {key_of(r): r for r in rows}
     units, seen = {}, set()
-    for s in registry["навыки"]:
-        key = (s["набор"], s["имя"])
-        if key in seen:
+    for r in rows:
+        if key_of(r) in seen:
             continue
-        seen.add(key)
-        versions = [s]
-        if s["пара"]:
-            p = by[(s["пара"]["набор"], s["пара"]["имя"])]
-            seen.add((p["набор"], p["имя"]))
+        seen.add(key_of(r))
+        versions = [r]
+        if r.get("пара"):
+            p = by[pair_of(r["пара"])]
+            seen.add(key_of(p))
             versions.append(p)
-        units[s["имя"]] = versions
+        units[r["имя"]] = versions
     return units
 
 
@@ -101,11 +140,12 @@ def citation_text(cite):
     return str(cite or "")
 
 
-def check_record(rec, units, ref_root):
+def check_record(rec, units, ref_root, schema="навыки"):
     """Замечания по одной записи. Пустой список — запись годна."""
+    S = SCHEMAS[schema]
     out = []
     name = rec.get("единица", "")
-    missing = [f for f in REQUIRED if f not in rec]
+    missing = [f for f in S["поля"] if f not in rec]
     if missing:
         out.append("нет полей: %s" % ", ".join(missing))
         return out
@@ -114,8 +154,21 @@ def check_record(rec, units, ref_root):
         out.append("единицы «%s» нет в механическом слое" % name)
         return out
 
-    if not rec["суть"].strip():
-        out.append("пустая суть")
+    if not str(rec[S["непустое"]]).strip():
+        out.append("пустое поле «%s»" % S["непустое"])
+
+    for field, allowed in S["перечни"].items():
+        # Значением может быть объект {набор: значение}: у парной единицы версии
+        # честно различаются по глубине и по основанию, и одно значение на обе
+        # было бы неправдой. Первая редакция схемы этого не допускала, и читатель
+        # по meta-dsl-spec.md был вынужден написать оба через точку с запятой —
+        # изъян схемы, а не его ошибка.
+        values = (list(rec[field].values()) if isinstance(rec[field], dict)
+                  else [rec[field]])
+        for v in values:
+            if str(v).strip() not in allowed:
+                out.append("«%s» = «%s» — не из перечня: %s"
+                           % (field, v, ", ".join(allowed)))
 
     section = rec["раздел"]
     if section not in SECTIONS and section != OUTSIDE:
@@ -137,20 +190,20 @@ def check_record(rec, units, ref_root):
     if not paired and rec["разница_версий"].strip():
         out.append("единица непарная, а разница версий заполнена")
 
-    for field in ("суть", "почему_раздел", "входы_выходы"):
-        m = VERDICT.search(rec[field])
+    for field in S["на_вердикт"]:
+        m = VERDICT.search(str(rec[field]))
         if m:
             out.append("в поле «%s» просочился вердикт: «%s»" % (field, m.group(0)))
     return out
 
 
-def merge(reading_dir, registry_path, ref_root):
+def merge(reading_dir, registry_path, ref_root, schema="навыки"):
     registry_path = Path(registry_path)
     if not registry_path.is_file():
         fail("[ошибка] нет %s — сначала соберите механический слой:\n"
              "  python tools/build-reference-registry.py" % registry_path)
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    units = load_units(registry)
+    units = load_units(registry, schema)
 
     reading_dir = Path(reading_dir)
     parts = sorted(reading_dir.glob("out-*.json"))
@@ -176,7 +229,7 @@ def merge(reading_dir, registry_path, ref_root):
                                 % (name, seen[name], part.name))
                 continue
             seen[name] = part.name
-            for note in check_record(rec, units, ref_root):
+            for note in check_record(rec, units, ref_root, schema):
                 problems.append("%s / %s: %s" % (part.name, name, note))
             records.append(rec)
 
@@ -187,16 +240,32 @@ def merge(reading_dir, registry_path, ref_root):
                            + (" …" if len(uncovered) > 10 else "")))
 
     records.sort(key=lambda r: r.get("единица", ""))
-    return {
-        "что_это": "Читающий слой описи референсов. Суждение, а не выгрузка: "
-                   "воспроизвести перезапуском нельзя, поэтому проверяется на входе.",
+    out = {
+        "что_это": "Читающий слой описи референсов (%s). Суждение, а не выгрузка: "
+                   "воспроизвести перезапуском нельзя, поэтому проверяется на входе." % schema,
+        "схема": schema,
         "единиц": len(records),
         "вне_раскладки": sum(1 for r in records if r.get("раздел") == OUTSIDE),
         "по_разделам": {s: sum(1 for r in records if r.get("раздел") == s)
                         for s in SECTIONS
                         if any(r.get("раздел") == s for r in records)},
         "записи": records,
-    }, problems
+    }
+    for field, allowed in SCHEMAS[schema]["перечни"].items():
+        # Запись с разными значениями по версиям учитывается в каждом из них.
+        # Иначе числа молча не сходятся с общим счётом единиц — а несходящийся
+        # итог в описи хуже отсутствующего: он выглядит проверенным.
+        counts = {v: 0 for v in allowed}
+        for r in records:
+            val = r.get(field)
+            for v in (val.values() if isinstance(val, dict) else [val]):
+                if v in counts:
+                    counts[v] += 1
+        out["по_" + field] = {v: n for v, n in counts.items() if n}
+        out["по_" + field + "_пояснение"] = (
+            "единица с разными значениями у версий учтена в каждом из них, "
+            "поэтому сумма может превышать число единиц")
+    return out, problems
 
 
 def main():
@@ -205,11 +274,13 @@ def main():
     ap.add_argument("--registry", default=str(ROOT / "docs" / "reference-registry.json"))
     ap.add_argument("--ref", default=str(ROOT / "_ref"))
     ap.add_argument("--out", default=str(ROOT / "docs" / "reference-reading.json"))
+    ap.add_argument("--schema", choices=sorted(SCHEMAS), default="навыки",
+                    help="какая опись сводится: навыки (РАЗБОР-1а) или данные (РАЗБОР-1б)")
     ap.add_argument("--force", action="store_true",
                     help="записать несмотря на замечания (замечания всё равно печатаются)")
     args = ap.parse_args()
 
-    reading, problems = merge(args.reading_dir, args.registry, Path(args.ref))
+    reading, problems = merge(args.reading_dir, args.registry, Path(args.ref), args.schema)
 
     for p in problems:
         print("[замечание] %s" % p)
@@ -226,6 +297,10 @@ def main():
           % (reading["единиц"], reading["вне_раскладки"], len(problems)))
     for section, n in sorted(reading["по_разделам"].items(), key=lambda kv: -kv[1]):
         print("  %-24s %3d" % (section, n))
+    for field in SCHEMAS[args.schema]["перечни"]:
+        print("  по полю «%s»:" % field)
+        for v, n in sorted(reading["по_" + field].items(), key=lambda kv: -kv[1]):
+            print("    %-24s %3d" % (v, n))
     print("записано: %s" % args.out)
 
 
