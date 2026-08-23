@@ -2,7 +2,7 @@
 
 Механический слой (`docs/reference-registry.json`) собирается из файлов и
 воспроизводится побайтно. Читающий слой — суждение: о чём навык на самом
-деле и к какому из наших 16 разделов относится. Воспроизвести его нельзя,
+деле и к какому из наших 15 разделов относится. Воспроизвести его нельзя,
 поэтому он живёт отдельным файлом и проходит проверку на входе.
 
 Проверяется то, что можно проверить механически:
@@ -30,10 +30,20 @@ ROOT = Path(__file__).resolve().parent.parent
 SECTIONS = [
     "1c-code-conventions", "1c-metadata-objects", "1c-managed-forms", "1c-queries",
     "1c-access-rights", "1c-security", "1c-client-server", "1c-extensions",
-    "1c-reports-and-layouts", "1c-integrations", "1c-libraries-bsp", "1c-localization",
+    "1c-reports-and-layouts", "1c-integrations", "1c-localization",
     "1c-build-and-db", "1c-update-and-support", "1c-quality-gates", "1c-publish-and-operate",
 ]
 OUTSIDE = "вне раскладки"
+
+# Разделы, убранные из раскладки после того, как читатели уже отработали.
+# Их значения остаются законными: читатель судил по раскладке, какой она была,
+# и переписывать его вывод задним числом нельзя — это подделка описи. Но и
+# считать такую единицу покрытой нельзя: раздела больше нет. Поэтому она
+# проходит проверку и отдельно называется в итоге.
+RETIRED = {
+    "1c-libraries-bsp": "убран 23.08.2026 решением 17: специфика БСП — предмет "
+                        "отдельного набора, а не этого",
+}
 
 # Две описи — навыков (РАЗБОР-1а) и данных (РАЗБОР-1б) — спрашивают разное,
 # но проверяются одинаково. Правило вердикта и разбор цитаты дались двумя
@@ -171,7 +181,7 @@ def check_record(rec, units, ref_root, schema="навыки"):
                            % (field, v, ", ".join(allowed)))
 
     section = rec["раздел"]
-    if section not in SECTIONS and section != OUTSIDE:
+    if section not in SECTIONS and section != OUTSIDE and section not in RETIRED:
         out.append("раздел «%s» не из списка и не «%s»" % (section, OUTSIDE))
 
     cite = citation_text(rec["цитата"])
@@ -246,6 +256,9 @@ def merge(reading_dir, registry_path, ref_root, schema="навыки"):
         "схема": schema,
         "единиц": len(records),
         "вне_раскладки": sum(1 for r in records if r.get("раздел") == OUTSIDE),
+        "в_убранных_разделах": {sec: sum(1 for r in records if r.get("раздел") == sec)
+                                for sec in RETIRED
+                                if any(r.get("раздел") == sec for r in records)},
         "по_разделам": {s: sum(1 for r in records if r.get("раздел") == s)
                         for s in SECTIONS
                         if any(r.get("раздел") == s for r in records)},
@@ -297,6 +310,8 @@ def main():
           % (reading["единиц"], reading["вне_раскладки"], len(problems)))
     for section, n in sorted(reading["по_разделам"].items(), key=lambda kv: -kv[1]):
         print("  %-24s %3d" % (section, n))
+    for section, n in sorted(reading.get("в_убранных_разделах", {}).items()):
+        print("  %-24s %3d  — раздел %s" % (section, n, RETIRED[section]))
     for field in SCHEMAS[args.schema]["перечни"]:
         print("  по полю «%s»:" % field)
         for v, n in sorted(reading["по_" + field].items(), key=lambda kv: -kv[1]):

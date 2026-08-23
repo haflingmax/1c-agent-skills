@@ -3,6 +3,9 @@
   "схема": "данные",
   "единиц": 78,
   "вне_раскладки": 16,
+  "в_убранных_разделах": {
+    "1c-libraries-bsp": 1
+  },
   "по_разделам": {
     "1c-code-conventions": 5,
     "1c-metadata-objects": 6,
@@ -13,7 +16,6 @@
     "1c-extensions": 3,
     "1c-reports-and-layouts": 8,
     "1c-integrations": 4,
-    "1c-libraries-bsp": 1,
     "1c-build-and-db": 10,
     "1c-update-and-support": 1,
     "1c-quality-gates": 4,

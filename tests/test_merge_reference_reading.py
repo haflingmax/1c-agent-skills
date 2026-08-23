@@ -178,10 +178,25 @@ def test_data_schema_still_checks_the_citation(tmp_path):
 # --- раздел берётся из списка, а не из головы ------------------------------
 
 def test_invented_section_is_caught(tmp_path):
-    """Раздел не из шестнадцати — выдумка, даже если звучит правдоподобно."""
+    """Раздел не из пятнадцати — выдумка, даже если звучит правдоподобно."""
     units = make_units(tmp_path)
     notes = mod.check_record(good(раздел="1c-command-line"), units, tmp_path)
     assert any("не из списка" in n for n in notes), notes
+
+
+def test_retired_section_is_accepted_not_rewritten(tmp_path):
+    """Раздел, убранный после работы читателей, остаётся законным значением.
+
+    `1c-libraries-bsp` был в раскладке, когда читатели отрабатывали, и убран
+    решением 17 позже. Забраковать их вывод значило бы требовать, чтобы они
+    судили по раскладке, которой тогда не было; переписать вывод самому —
+    подделать опись. Значение принимается, а единица считается отдельно:
+    покрытой она не является, раздела больше нет.
+    """
+    units = make_units(tmp_path)
+    assert "1c-libraries-bsp" in mod.RETIRED
+    assert "1c-libraries-bsp" not in mod.SECTIONS
+    assert mod.check_record(good(раздел="1c-libraries-bsp"), units, tmp_path) == []
 
 
 def test_outside_layout_is_a_legal_answer(tmp_path):
