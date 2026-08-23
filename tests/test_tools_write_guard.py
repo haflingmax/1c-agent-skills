@@ -46,6 +46,7 @@ READS_ONLY = {
     "prove-blocking-rules.ps1": "гоняет 1cv8 во временном каталоге",
     "build-reference-registry.py": "читает _ref/, пишет опись в docs/, skills/ не трогает",
     "merge-reference-reading.py": "сводит выводы читателей в docs/, skills/ не трогает",
+    "build-reference-data-registry.py": "читает _ref/, пишет опись данных в docs/, skills/ не трогает",
 }
 
 
