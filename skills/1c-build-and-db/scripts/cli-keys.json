@@ -1,5 +1,5 @@
 {
- "источник": "1С:Предприятие 8.3.27, руководство администратора, приложение 7. Состав ключей — фактический перечень; пояснения написаны нами.",
+ "источник": "1С:Предприятие 8.3.27, руководство администратора, приложение 7. Состав ключей собран программно (tools/build-cli-keys.py) из _its/cmdline/its-pril7-full.json; пояснения (gloss) — нами.",
  "режимы": [
   "DESIGNER",
   "ENTERPRISE",
@@ -17,128 +17,188 @@
   "1cv8 ENTERPRISE [<параметры запуска>]"
  ],
  "ключи": {
-  "/AccessToken": {
-   "arg": "",
-   "mode": "общий",
+  "/@": {
+   "arg": "<файл с командой>",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.11"
+   ],
    "glued": false
   },
-  "/AddToList": {
+  "/AccessToken": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": null,
+   "section": [
+    "7.3.2"
+   ],
+   "glued": false,
+   "arg_прозой": "7.3.2: «Позволяет указать JWT для выполнения аутентификации пользователя». Синопсис — голое имя ключа, угловых скобок в источнике нет"
+  },
+  "/AddToList": {
+   "arg": "[<имя ИБ>]",
+   "modes": [
+    "CREATEINFOBASE"
+   ],
+   "opts": [],
+   "section": [
+    "7.2.3"
+   ],
    "glued": false
   },
   "/AgentBaseDir": {
    "arg": "<рабочий каталог>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.16",
+   "section": [
+    "7.4.16"
+   ],
    "glued": false
   },
   "/AgentListenAddress": {
    "arg": "<Адрес>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.16",
+   "section": [
+    "7.4.16"
+   ],
    "glued": false
   },
   "/AgentMode": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.16",
+   "section": [
+    "7.4.16"
+   ],
    "glued": false
   },
   "/AgentPort": {
    "arg": "<Порт>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.16",
+   "section": [
+    "7.4.16"
+   ],
    "glued": false
   },
   "/AgentSSHHostKey": {
    "arg": "<приватный ключ>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.16",
+   "section": [
+    "7.4.16"
+   ],
    "glued": false
   },
   "/AgentSSHHostKeyAuto": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.16",
+   "section": [
+    "7.4.16"
+   ],
    "glued": false
   },
   "/AllowExecuteScheduledJobs": {
    "arg": "-Off|-Force",
-   "mode": "общий",
+   "modes": [],
    "opts": [
     "-Force",
     "-Off"
    ],
-   "section": "7.3.10",
+   "section": [
+    "7.3.10"
+   ],
    "glued": false
   },
   "/AppArch": {
    "arg": "<разрядность>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.3",
+   "section": [
+    "7.3.3"
+   ],
    "glued": false
   },
   "/AppAutoCheckMode": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.3",
+   "section": [
+    "7.3.3"
+   ],
    "glued": false
   },
   "/AppAutoCheckVersion": {
    "arg": "<режим>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.3",
+   "section": [
+    "7.3.3"
+   ],
    "glued": true
   },
   "/AppAutoInstallLastVersion": {
    "arg": "<режим>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.10",
+   "section": [
+    "7.3.10"
+   ],
    "glued": true
   },
   "/Authoff": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/C": {
    "arg": "<строка текста>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.10",
+   "section": [
+    "7.3.10"
+   ],
    "glued": false
   },
   "/CheckCanApplyConfigurationExtensions": {
    "arg": "[-Extension <ИмяРасширения>] [-AllZones] [-Z «Значения разделителей»]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllZones",
     "-Extension",
     "-Z"
    ],
-   "section": "7.4.5",
+   "section": [
+    "7.4.5"
+   ],
    "glued": false
   },
   "/CheckConfig": {
-   "arg": "[-ConfigLogIntegrity] [-IncorrectReferences] [-ThinClient] [-WebClient",
-   "mode": "DESIGNER",
+   "arg": "[-ConfigLogIntegrity] [-IncorrectReferences] [-ThinClient] [-WebClient] [-MobileClient] [-MobileAppClient] [-Server] [-MobileAppServer] [-MobileClientStandalone] [-ExternalConnection] [-ExternalConnectionServer] [-ThickClientManagedApplication] [-ThickClientServerManagedApplication] [-ThickClientOrdinaryApplication] [-ThickClientServerOrdinaryApplication] [-DistributiveModules] [-UnreferenceProcedures] [-HandlersExistence] [-EmptyHandlers] [-ExtendedModulesCheck] [-CheckUseModality] [-CheckUseSynchronousCalls] [-UnsupportedFunctional] [-MobileClientDigiSign] [-Extension <Имя расширения>] [-AllExtensions]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllExtensions",
     "-CheckUseModality",
@@ -151,15 +211,33 @@
     "-ExternalConnection",
     "-ExternalConnectionServer",
     "-HandlersExistence",
-    "-IncorrectReferences"
+    "-IncorrectReferences",
+    "-MobileAppClient",
+    "-MobileAppServer",
+    "-MobileClient",
+    "-MobileClientDigiSign",
+    "-MobileClientStandalone",
+    "-Server",
+    "-ThickClientManagedApplication",
+    "-ThickClientOrdinaryApplication",
+    "-ThickClientServerManagedApplication",
+    "-ThickClientServerOrdinaryApplication",
+    "-ThinClient",
+    "-UnreferenceProcedures",
+    "-UnsupportedFunctional",
+    "-WebClient"
    ],
-   "section": "7.4.5",
-   "gloss": "синтаксическая и логическая проверка конфигурации",
-   "glued": false
+   "section": [
+    "7.4.5"
+   ],
+   "glued": false,
+   "gloss": "синтаксическая и логическая проверка конфигурации"
   },
   "/CheckModules": {
-   "arg": "[-ThinClient] [-WebClient] [-MobileClient] [-MobileClientStandalone] [",
-   "mode": "DESIGNER",
+   "arg": "[-ThinClient] [-WebClient] [-MobileClient] [-MobileClientStandalone] [-MobileAppClient] [-Server] [-MobileAppServer] [-ExternalConnection] [-ThickClientOrdinaryApplication] [-ExtendedModulesCheck] [-Extension <Имя расширения>] [-AllExtensions]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllExtensions",
     "-ExtendedModulesCheck",
@@ -174,21 +252,28 @@
     "-ThinClient",
     "-WebClient"
    ],
-   "section": "7.4.5",
-   "gloss": "проверка модулей на встроенном языке",
-   "glued": false
+   "section": [
+    "7.4.5"
+   ],
+   "glued": false,
+   "gloss": "проверка модулей на встроенном языке"
   },
   "/ClearCache": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.10",
+   "section": [
+    "7.3.10"
+   ],
    "glued": false
   },
   "/CompareCfg": {
-   "arg": "–FirstConfigurationType <тип конфигурации> [-FirstName <имя конфигурац",
-   "mode": "DESIGNER",
+   "arg": "–FirstConfigurationType <тип конфигурации> [-FirstName <имя конфигурации>] [-FirstFile <путь к файлу>] [-FirstVersion <номер версии>] –SecondConfigurationType <тип конфигурации> [-SecondName <имя конфигурации>] [-SecondFile <путь к файлу>] [-SecondVersion <номер версии>] [-MappingRule <правило>] [-Objects <имя файла>] -ReportType <тип отчета> [-IncludeChangedObjects] [-IncludeDeletedObjects] [-IncludeAddedObjects] -ReportFormat <тип формата> -ReportFile <имя файла>",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
+    "-FirstConfigurationType",
     "-FirstFile",
     "-FirstName",
     "-FirstVersion",
@@ -200,15 +285,22 @@
     "-ReportFile",
     "-ReportFormat",
     "-ReportType",
-    "-SecondFile"
+    "-SecondConfigurationType",
+    "-SecondFile",
+    "-SecondName",
+    "-SecondVersion"
    ],
-   "section": "7.4.4",
-   "gloss": "сравнить две конфигурации и выдать отчёт",
-   "glued": false
+   "section": [
+    "7.4.4"
+   ],
+   "glued": false,
+   "gloss": "сравнить две конфигурации и выдать отчёт"
   },
   "/ConfigurationRepositoryAddUser": {
-   "arg": "-User <Имя> -Pwd <Пароль> -Rights <Права> [-RestoreDeletedUser] [-Exte",
-   "mode": "DESIGNER",
+   "arg": "-User <Имя> -Pwd <Пароль> -Rights <Права> [-RestoreDeletedUser] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
     "-Pwd",
@@ -216,62 +308,87 @@
     "-Rights",
     "-User"
    ],
-   "section": "7.4.15.3",
+   "section": [
+    "7.4.15.3"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryBindCfg": {
-   "arg": "[-forceBindAlreadyBindedUser] [-forceReplaceCfg] [-Extension <Имя расш",
-   "mode": "DESIGNER",
+   "arg": "[-forceBindAlreadyBindedUser] [-forceReplaceCfg] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
     "-forceBindAlreadyBindedUser",
     "-forceReplaceCfg"
    ],
-   "section": "7.4.15.5",
+   "section": [
+    "7.4.15.5"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryClearCache": {
    "arg": "[-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.15.7",
+   "section": [
+    "7.4.15.7"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryClearGlobalCache": {
    "arg": "[-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.15.7",
+   "section": [
+    "7.4.15.7"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryClearLocalCache": {
    "arg": "[-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.15.7",
+   "section": [
+    "7.4.15.7"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryCommit": {
-   "arg": "[–Objects <имя файла>] [-comment <текст комментария>] [-keepLocked] [-",
-   "mode": "DESIGNER",
+   "arg": "[–Objects <имя файла>] [-comment <текст комментария>] [-keepLocked] [-force] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
+    "-Objects",
     "-comment",
     "-force",
     "-keepLocked"
    ],
-   "section": "7.4.15.4",
+   "section": [
+    "7.4.15.4"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryCopyUsers": {
-   "arg": "-Path <путь> -User <Имя> -Pwd <Пароль> [-RestoreDeletedUser] [-Extensi",
-   "mode": "DESIGNER",
+   "arg": "-Path <путь> -User <Имя> -Pwd <Пароль> [-RestoreDeletedUser] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
     "-Path",
@@ -279,12 +396,16 @@
     "-RestoreDeletedUser",
     "-User"
    ],
-   "section": "7.4.15.3",
+   "section": [
+    "7.4.15.3"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryCreate": {
-   "arg": "[-AllowConfigurationChanges -ChangesAllowedRule <Правило поддержки> -C",
-   "mode": "DESIGNER",
+   "arg": "[-AllowConfigurationChanges -ChangesAllowedRule <Правило поддержки> -ChangesNotRecommendedRule <Правило поддержки>] [-NoBind] [-MinPasswordLenght <Длина>] [-CheckPasswordComplexity] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllowConfigurationChanges",
     "-ChangesAllowedRule",
@@ -294,62 +415,91 @@
     "-MinPasswordLenght",
     "-NoBind"
    ],
-   "section": "7.4.15.2",
+   "section": [
+    "7.4.15.2"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryDumpCfg": {
-   "arg": "<имя cf файла> [-v <номер версии хранилища>] [-Extension <Имя расширен",
-   "mode": "DESIGNER",
+   "arg": "<имя cf файла> [-v <номер версии хранилища>] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
     "-v"
    ],
-   "section": "7.4.15.5",
+   "section": [
+    "7.4.15.5"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryF": {
    "arg": "<каталог хранилища>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.15.1",
+   "section": [
+    "7.4.15.1"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryLock": {
    "arg": "[–Objects <имя файла>] [-revised] [-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
+    "-Objects",
     "-revised"
    ],
-   "section": "7.4.15.4",
+   "section": [
+    "7.4.15.4"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryN": {
    "arg": "<имя>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.15.1",
+   "section": [
+    "7.4.15.1"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryOptimizeData": {
    "arg": "[-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.15.6",
+   "section": [
+    "7.4.15.6"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryP": {
    "arg": "<пароль>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.15.1",
+   "section": [
+    "7.4.15.1"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryReport": {
-   "arg": "<имя файла> [-NBegin <номер версии>] [-NEnd <номер версии>] [-DateBegi",
-   "mode": "DESIGNER",
+   "arg": "<имя файла> [-NBegin <номер версии>] [-NEnd <номер версии>] [-DateBegin <дата начала>] [-DateEnd <дата окончания>] [-GroupByObject] [-GroupByComment] [-DoNotIncludeVersionsWithLabels] [-IncludeOnlyVersionsWithLabels] [-IncludeCommentLinesWithDoubleSlash] [-ConfigurationVersion <версия конфигурации>] [-ReportFormat <txt|mxl>] [-Extension <Имя расшире-ния>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-ConfigurationVersion",
     "-DateBegin",
@@ -364,44 +514,61 @@
     "-NEnd",
     "-ReportFormat"
    ],
-   "section": "7.4.15.6",
+   "section": [
+    "7.4.15.6"
+   ],
    "glued": false
   },
   "/ConfigurationRepositorySetLabel": {
-   "arg": "[-v <номер версии хранилища>] [-name] <имя метки> [-comment <текст ком",
-   "mode": "DESIGNER",
+   "arg": "[-v <номер версии хранилища>] [-name] <имя метки> [-comment <текст комментария>] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
     "-comment",
     "-name",
     "-v"
    ],
-   "section": "7.4.15.6",
+   "section": [
+    "7.4.15.6"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryUnLock": {
    "arg": "[–Objects <имя файла>] [-force] [-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
+    "-Objects",
     "-force"
    ],
-   "section": "7.4.15.4",
+   "section": [
+    "7.4.15.4"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryUnbindCfg": {
    "arg": "[-force] [-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
     "-force"
    ],
-   "section": "7.4.15.5",
+   "section": [
+    "7.4.15.5"
+   ],
    "glued": false
   },
   "/ConfigurationRepositoryUpdateCfg": {
-   "arg": "[-v <номер версии хранилища>] [-revised] [-force] [-Objects <имя файла",
-   "mode": "DESIGNER",
+   "arg": "[-v <номер версии хранилища>] [-revised] [-force] [-Objects <имя файла>] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension",
     "-Objects",
@@ -409,32 +576,45 @@
     "-revised",
     "-v"
    ],
-   "section": "7.4.15.5",
+   "section": [
+    "7.4.15.5"
+   ],
    "glued": false
   },
   "/ConvertFiles": {
    "arg": "<имя файла|путь>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.17",
+   "section": [
+    "7.4.17"
+   ],
    "glued": false
   },
   "/CreateDistributionFiles": {
-   "arg": "[-cffile <имя cf-файла>] [-cfufile <имя cfu-файла> [-f <имя cf-файла>|",
-   "mode": "DESIGNER",
+   "arg": "[-cffile <имя cf-файла>] [-cfufile <имя cfu-файла> [-f <имя cf-файла>|-v <версия дистрибутива>]+][–digisign <имя файла с параметрами лицензирования>] [-WarningAsError]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-WarningAsError",
     "-cffile",
     "-cfufile",
+    "-digisign",
     "-f",
     "-v"
    ],
-   "section": "7.4.7",
+   "section": [
+    "7.4.7"
+   ],
    "glued": false
   },
   "/CreateDistributive": {
-   "arg": "<каталог создания комплекта поставки> -File <имя файла описания компле",
-   "mode": "DESIGNER",
+   "arg": "<каталог создания комплекта поставки> -File <имя файла описания комплекта поставки> [-Option <вариант поставки>] [-MakeSetup] [-MakeFiles] [-digisign <имя файла с параметрами лицензирования >] [-WarningAsError]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-File",
     "-MakeFiles",
@@ -443,12 +623,16 @@
     "-WarningAsError",
     "-digisign"
    ],
-   "section": "7.4.7",
+   "section": [
+    "7.4.7"
+   ],
    "glued": false
   },
   "/CreateDistributivePackage": {
-   "arg": "<имя каталога> -File <имя файла описания комплекта поставки> -PackageF",
-   "mode": "DESIGNER",
+   "arg": "<имя каталога> -File <имя файла описания комплекта поставки> -PackageFileName <имя архива> [-Option <вариант поставки>] [-MakeSetup] [-MakeFiles] [-digisign <имя файла с параметрами лицензирования >] [-WarningAsError]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-File",
     "-MakeFiles",
@@ -458,105 +642,141 @@
     "-WarningAsError",
     "-digisign"
    ],
-   "section": "7.4.7",
+   "section": [
+    "7.4.7"
+   ],
    "glued": false
   },
   "/CreateTemplateListFile": {
    "arg": "<имя файла> [-TemplatesSourcePath]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-TemplatesSourcePath"
    ],
-   "section": "7.4.7",
+   "section": [
+    "7.4.7"
+   ],
    "glued": false
   },
   "/DeleteCfg": {
    "arg": "[-Extension <Имя расширения>] [-AllExtensions]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllExtensions",
     "-Extension"
    ],
-   "section": "7.4.4",
+   "section": [
+    "7.4.4"
+   ],
    "glued": false
   },
   "/DisableBackgroundIndexBuild": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
+   "section": [
+    "7.3.11"
+   ],
    "glued": false
   },
   "/DisableHomePageForms": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
+   "section": [
+    "7.3.11"
+   ],
    "glued": false
   },
   "/DisableSplash": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
+   "section": [
+    "7.3.11"
+   ],
    "glued": false
   },
   "/DisableStartupDialogs": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
-   "gloss": "не показывать диалоги при запуске — обязателен в пакетном режиме",
-   "glued": false
+   "section": [
+    "7.3.11"
+   ],
+   "glued": false,
+   "gloss": "не показывать диалоги при запуске — обязателен в пакетном режиме"
   },
   "/DisableStartupMessages": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
-   "gloss": "не показывать служебные сообщения при запуске",
-   "glued": false
+   "section": [
+    "7.3.11"
+   ],
+   "glued": false,
+   "gloss": "не показывать служебные сообщения при запуске"
   },
   "/DisableUnrecoverableErrorMessage": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
+   "section": [
+    "7.3.11"
+   ],
    "glued": false
   },
   "/DisplayUserNotificationList": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
+   "section": [
+    "7.3.11"
+   ],
    "glued": false
   },
   "/DumpCfg": {
    "arg": "<имя cf/cfe файла> [-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.4",
-   "gloss": "сохранить конфигурацию или расширение в файл cf/cfe",
-   "glued": false
+   "section": [
+    "7.4.4"
+   ],
+   "glued": false,
+   "gloss": "сохранить конфигурацию или расширение в файл cf/cfe"
   },
   "/DumpConfigFiles": {
-   "arg": "<каталог выгрузки> [-Module] [-Template] [-Help] [-AllWritable] [–Pict",
-   "mode": "DESIGNER",
+   "arg": "<каталог выгрузки> [-Module] [-Template] [-Help] [-AllWritable] [–Picture] [–Right] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllWritable",
     "-Extension",
     "-Help",
     "-Module",
+    "-Picture",
+    "-Right",
     "-Template"
    ],
-   "section": "7.4.4",
+   "section": [
+    "7.4.4"
+   ],
    "glued": false
   },
   "/DumpConfigToFiles": {
-   "arg": "<каталог выгрузки> [-Format <режим>] [-Extension <Имя расширения>] [-A",
-   "mode": "DESIGNER",
+   "arg": "<каталог выгрузки> [-Format <режим>] [-Extension <Имя расширения>] [-AllExtensions] [–update] [–force] [–getChanges <имя файла>] [–configDumpInfoForChanges <имя файла>] [-listFile <имя файла>] [-configDumpInfoOnly] [-Server [-JobsCount <количество>]] [-Archive <имя файла>] [-ignoreUnresolvedReferences]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllExtensions",
     "-Archive",
@@ -564,138 +784,190 @@
     "-Format",
     "-JobsCount",
     "-Server",
+    "-configDumpInfoForChanges",
     "-configDumpInfoOnly",
+    "-force",
+    "-getChanges",
     "-ignoreUnresolvedReferences",
-    "-listFile"
+    "-listFile",
+    "-update"
    ],
-   "section": "7.4.4",
-   "gloss": "выгрузить конфигурацию в каталог XML",
-   "glued": false
+   "section": [
+    "7.4.4"
+   ],
+   "glued": false,
+   "gloss": "выгрузить конфигурацию в каталог XML"
   },
   "/DumpDBCfg": {
    "arg": "<имя cf/cfe файла> [-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.4",
+   "section": [
+    "7.4.4"
+   ],
    "glued": false
   },
   "/DumpDBCfgList": {
    "arg": "[-Extension <Имя расширения>] [-AllExtensions]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllExtensions",
     "-Extension"
    ],
-   "section": "7.4.4",
+   "section": [
+    "7.4.4"
+   ],
    "glued": false
   },
   "/DumpExternalDataProcessorOrReportToFiles": {
-   "arg": "<корневой файл выгрузки> <внешняя обработка (отчет)> [-Format Plain|Hi",
-   "mode": "DESIGNER",
+   "arg": "<корневой файл выгрузки> <внешняя обработка (отчет)> [-Format Plain|Hierarchical]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Format"
    ],
-   "section": "7.4.8",
+   "section": [
+    "7.4.8"
+   ],
    "glued": false
   },
   "/DumpIB": {
    "arg": "<имя файла>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.2",
-   "gloss": "выгрузить информационную базу в файл dt",
-   "glued": false
+   "section": [
+    "7.4.2"
+   ],
+   "glued": false,
+   "gloss": "выгрузить информационную базу в файл dt"
   },
   "/DumpResult": {
    "arg": "<имя файла>",
-   "mode": "DESIGNER",
+   "modes": [
+    "CREATEINFOBASE",
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.17",
-   "gloss": "файл с кодом возврата операции",
-   "glued": false
+   "section": [
+    "7.2.3",
+    "7.4.17"
+   ],
+   "glued": false,
+   "gloss": "файл с кодом возврата операции"
   },
   "/EmailAuth": {
    "arg": "<email>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/EmulateServerCallDelay": {
    "arg": "[-Call<задержка>] [-Send<задержка>] [-Recevie<задержка>]",
-   "mode": "общий",
+   "modes": [],
    "opts": [
     "-Call",
     "-Recevie",
     "-Send"
    ],
-   "section": "7.3.7",
+   "section": [
+    "7.3.7"
+   ],
    "glued": false
   },
   "/EnableCheckExtensionsAndAddInsSyncCalls": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.9",
+   "section": [
+    "7.3.9"
+   ],
    "glued": false
   },
   "/EnableCheckModal": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.9",
+   "section": [
+    "7.3.9"
+   ],
    "glued": false
   },
   "/EnableCheckScriptCircularRefs": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.9",
+   "section": [
+    "7.3.9"
+   ],
    "glued": false
   },
   "/EnableCheckServerCalls": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.9",
+   "section": [
+    "7.3.9"
+   ],
    "glued": false
   },
   "/EraseData": {
    "arg": "[/Z[<разделители>]]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.12",
+   "section": [
+    "7.4.12"
+   ],
    "glued": false
   },
   "/Execute": {
    "arg": "<имя файла внешней обработки>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.10",
+   "section": [
+    "7.3.10"
+   ],
    "glued": false
   },
   "/F": {
    "arg": "<каталог>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
-   "gloss": "файловая база: путь к каталогу",
-   "glued": false
+   "section": [
+    "7.3.1"
+   ],
+   "glued": false,
+   "gloss": "файловая база: путь к каталогу"
   },
   "/GetConfigGenerationID": {
    "arg": "[-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.4",
+   "section": [
+    "7.4.4"
+   ],
    "glued": false
   },
   "/HttpsCA": {
    "arg": "[-windows] [-linux] [-macos] [-file <path>] [-pwd <password>] [-none]",
-   "mode": "общий",
+   "modes": [],
    "opts": [
     "-file",
     "-linux",
@@ -704,12 +976,14 @@
     "-pwd",
     "-windows"
    ],
-   "section": "7.3.4",
+   "section": [
+    "7.3.4"
+   ],
    "glued": false
   },
   "/HttpsCert": {
-   "arg": "[-windows] [-linux] [-macos] [-recent] [-auto] [-choose] [-file <path>",
-   "mode": "общий",
+   "arg": "[-windows] [-linux] [-macos] [-recent] [-auto] [-choose] [-file <path>] [-pwd <password>] [-none]",
+   "modes": [],
    "opts": [
     "-auto",
     "-choose",
@@ -721,33 +995,43 @@
     "-recent",
     "-windows"
    ],
-   "section": "7.3.4",
+   "section": [
+    "7.3.4"
+   ],
    "glued": false
   },
   "/HttpsForceTLS1_0": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.4",
+   "section": [
+    "7.3.4"
+   ],
    "glued": false
   },
   "/HttpsForceTLS1_1": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.4",
+   "section": [
+    "7.3.4"
+   ],
    "glued": false
   },
   "/HttpsForceTLS1_2": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.4",
+   "section": [
+    "7.3.4"
+   ],
    "glued": false
   },
   "/IBCheckAndRepair": {
-   "arg": "[-ReIndex] [-LogIntegrity [MDtype[,MDtype]] | -LogAndRefsIntegrity [MD",
-   "mode": "DESIGNER",
+   "arg": "[-ReIndex] [-LogIntegrity [MDtype[,MDtype]] | -LogAndRefsIntegrity [MDtype[,MDtype]]] [-RecalcTotals] [-IBCompression] [-Rebuild] [–RebuildStandaloneCfg] [-TestOnly | [[-BadRefCreate | -BadRefClear | -BadRefNone] [-BadDataCreate | -BadDataDelete]]] [-UseStartPoint] [-TimeLimit:hhh:mm] [-ConfigurationExtensionsLogIntegrity] [-RefreshTableLocation] [-BinaryDataStorageIntegrity [MDtype[,MDtype]]] [-JobsCount <количество>] [-Z: «значения разделителей»] [-CheckAndEnableCORPFunctionality]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-BadDataCreate",
     "-BadDataDelete",
@@ -760,106 +1044,157 @@
     "-IBCompression",
     "-JobsCount",
     "-LogAndRefsIntegrity",
-    "-LogIntegrity"
+    "-LogIntegrity",
+    "-ReIndex",
+    "-Rebuild",
+    "-RebuildStandaloneCfg",
+    "-RecalcTotals",
+    "-RefreshTableLocation",
+    "-TestOnly",
+    "-TimeLimit",
+    "-UseStartPoint",
+    "-Z"
    ],
-   "section": "7.4.5",
+   "section": [
+    "7.4.5"
+   ],
    "glued": false
   },
   "/IBConnectionString": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
-   "glued": false
+   "section": [
+    "7.3.1"
+   ],
+   "glued": false,
+   "arg_прозой": "7.3.1: «Позволяет задать строку соединения с информационной базой целиком в том виде, в котором ее возвращает функция СтрокаСоединенияИнформационнойБазы()». Синопсис — голое имя ключа, угловых скобок в источнике нет"
   },
   "/IBName": {
    "arg": "<имя информационной базы>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
-   "gloss": "имя базы из списка информационных баз",
-   "glued": false
+   "section": [
+    "7.3.1"
+   ],
+   "glued": false,
+   "gloss": "имя базы из списка информационных баз"
   },
   "/IBRestoreIntegrity": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.3",
+   "section": [
+    "7.4.3"
+   ],
    "glued": false
   },
   "/L": {
    "arg": "<код языка>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.6",
+   "section": [
+    "7.2.3",
+    "7.3.6"
+   ],
    "glued": true
   },
   "/LoadCfg": {
    "arg": "<имя cf/cfe файла> [-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.4",
-   "gloss": "загрузить конфигурацию или расширение из файла cf/cfe",
-   "glued": false
+   "section": [
+    "7.4.4"
+   ],
+   "glued": false,
+   "gloss": "загрузить конфигурацию или расширение из файла cf/cfe"
   },
   "/LoadConfigFiles": {
-   "arg": "<каталог загрузки> [-Module] [-Template] [-Help] [-AllWritable] [–Pict",
-   "mode": "DESIGNER",
+   "arg": "<каталог загрузки> [-Module] [-Template] [-Help] [-AllWritable] [–Picture] [–Right] [-Extension <Имя расширения>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllWritable",
     "-Extension",
     "-Help",
     "-Module",
+    "-Picture",
+    "-Right",
     "-Template"
    ],
-   "section": "7.4.4",
+   "section": [
+    "7.4.4"
+   ],
    "glued": false
   },
   "/LoadConfigFromFiles": {
-   "arg": "<каталог загрузки> [-Extension <Имя расширения>] [-AllExtensions] –fil",
-   "mode": "DESIGNER",
+   "arg": "<каталог загрузки> [-Extension <Имя расширения>] [-AllExtensions] –files «<файлы>» –listFile <файлСписка> -Format <режим> [-updateConfigDumpInfo] [-NoCheck] [-Archive <имя ZIP-архива>] -partial",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-AllExtensions",
     "-Archive",
     "-Extension",
     "-Format",
     "-NoCheck",
+    "-files",
+    "-listFile",
     "-partial",
     "-updateConfigDumpInfo"
    ],
-   "section": "7.4.4",
-   "gloss": "загрузить конфигурацию из каталога XML-выгрузки",
-   "glued": false
+   "section": [
+    "7.4.4"
+   ],
+   "glued": false,
+   "gloss": "загрузить конфигурацию из каталога XML-выгрузки"
   },
   "/LoadExternalDataProcessorOrReportFromFiles": {
    "arg": "<корневой файл выгрузки> <внешняя обработка (отчет)>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.8",
+   "section": [
+    "7.4.8"
+   ],
    "glued": false
   },
   "/MainWindowMode": {
    "arg": "<режим запуска>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.3",
+   "section": [
+    "7.3.3"
+   ],
    "glued": false
   },
   "/ManageCfgSupport": {
    "arg": "[-disableSupport [-force]]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-disableSupport",
     "-force"
    ],
-   "section": "7.4.6",
+   "section": [
+    "7.4.6"
+   ],
    "glued": false
   },
   "/MergeCfg": {
-   "arg": "<имя cf- или cfe-файла> -Settings <имя файла настроек> [-EnableSupport",
-   "mode": "DESIGNER",
+   "arg": "<имя cf‑ или cfe-файла> -Settings <имя файла настроек> [-EnableSupport | -DisableSupport] [-IncludeObjectsByUnresolvedRefs | -ClearUnresolvedRefs] [-Extension <Имя расширения>] [-force]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-ClearUnresolvedRefs",
     "-DisableSupport",
@@ -869,222 +1204,302 @@
     "-Settings",
     "-force"
    ],
-   "section": "7.4.4",
-   "gloss": "объединить конфигурацию с файлом по настройкам",
-   "glued": false
+   "section": [
+    "7.4.4"
+   ],
+   "glued": false,
+   "gloss": "объединить конфигурацию с файлом по настройкам"
   },
   "/MobileAppUpdatePublication": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.9",
+   "section": [
+    "7.4.9"
+   ],
    "glued": false
   },
   "/MobileAppWriteFile": {
    "arg": "<имя zip-файла>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.9",
+   "section": [
+    "7.4.9"
+   ],
    "glued": false
   },
   "/MobileClientDigiSign": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.10",
+   "section": [
+    "7.4.10"
+   ],
    "glued": false
   },
   "/MobileClientWriteFile": {
    "arg": "<имя файла>",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.10",
+   "section": [
+    "7.4.10"
+   ],
    "glued": false
   },
   "/ModifyPassword": {
    "arg": "<пароль>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/N": {
    "arg": "<имя>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
-   "gloss": "имя пользователя",
-   "glued": true
+   "section": [
+    "7.3.2"
+   ],
+   "glued": true,
+   "gloss": "имя пользователя"
   },
   "/NoProxy": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/O": {
    "arg": "<скорость соединения>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
+   "section": [
+    "7.2.3",
+    "7.3.1"
+   ],
    "glued": true
   },
   "/OIDA": {
    "arg": "<режим>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": true
   },
   "/Out": {
    "arg": "<имя файла> [-NoTruncate]",
-   "mode": "общий",
+   "modes": [],
    "opts": [
     "-NoTruncate"
    ],
-   "section": "7.3.11",
-   "gloss": "файл журнала выполнения",
-   "glued": false
+   "section": [
+    "7.2.3",
+    "7.3.11"
+   ],
+   "glued": false,
+   "gloss": "файл журнала выполнения"
   },
   "/P": {
    "arg": "<пароль>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
-   "gloss": "пароль",
-   "glued": true
+   "section": [
+    "7.3.2"
+   ],
+   "glued": true,
+   "gloss": "пароль"
   },
   "/Proxy": {
-   "arg": "-PSrv <адрес прокси> -PPort <порт> [-PUser <имя пользователя прокси> [",
-   "mode": "общий",
+   "arg": "-PSrv <адрес прокси> -PPort <порт> [-PUser <имя пользователя прокси> [-PPwd <пароль>]]",
+   "modes": [],
    "opts": [
     "-PPort",
     "-PPwd",
     "-PSrv",
     "-PUser"
    ],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/ReduceEventLogSize": {
    "arg": "<Date> [-saveAs <имя файла>] [-KeepSplitting]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-KeepSplitting",
     "-saveAs"
    ],
-   "section": "7.4.11",
+   "section": [
+    "7.4.11"
+   ],
    "glued": false
   },
   "/RegServer": {
    "arg": "[-AllUsers | -CurrentUser | -Auto]",
-   "mode": "OLE",
+   "modes": [
+    "OLE"
+   ],
    "opts": [
     "-AllUsers",
     "-Auto",
     "-CurrentUser"
    ],
-   "section": "7.6",
+   "section": [
+    "7.6"
+   ],
    "glued": false
   },
   "/ResetMasterNode": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.14",
+   "section": [
+    "7.4.14"
+   ],
    "glued": false
   },
   "/ResetSavedAuth": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/RestoreIB": {
    "arg": "<имя файла> [-JobsCount <Количество>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-JobsCount"
    ],
-   "section": "7.4.2",
-   "gloss": "загрузить информационную базу из файла dt",
-   "glued": false
+   "section": [
+    "7.4.2"
+   ],
+   "glued": false,
+   "gloss": "загрузить информационную базу из файла dt"
   },
   "/RollbackCfg": {
    "arg": "[-Extension <Имя расширения>]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Extension"
    ],
-   "section": "7.4.4",
+   "section": [
+    "7.4.4"
+   ],
    "glued": false
   },
   "/RunEnterprise": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.17",
+   "section": [
+    "7.4.17"
+   ],
    "glued": false
   },
   "/RunModeManagedApplication": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.3",
+   "section": [
+    "7.3.3"
+   ],
    "glued": false
   },
   "/RunModeOrdinaryApplication": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.3",
+   "section": [
+    "7.3.3"
+   ],
    "glued": false
   },
   "/RunShortcut": {
    "arg": "<имя файла>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.10",
+   "section": [
+    "7.3.10"
+   ],
    "glued": false
   },
   "/S": {
    "arg": "<адрес>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
-   "gloss": "клиент-серверная база: сервер\\база",
-   "glued": false
+   "section": [
+    "7.3.1"
+   ],
+   "glued": false,
+   "gloss": "клиент-серверная база: сервер\\база"
   },
   "/SAOnRestart": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/SLev": {
    "arg": "<Уровень>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
+   "section": [
+    "7.3.1"
+   ],
    "glued": true
   },
   "/SetPredefinedDataUpdate": {
    "arg": "[-Auto] [-UpdateAutomatically] [-DoNotUpdateAutomatically]",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-Auto",
     "-DoNotUpdateAutomatically",
     "-UpdateAutomatically"
    ],
-   "section": "7.4.13",
+   "section": [
+    "7.4.13"
+   ],
    "glued": false
   },
   "/SignCfg": {
-   "arg": "-ConfigurationType <тип конфигурации> -SignedFile <путь к cfe-файлу> [",
-   "mode": "DESIGNER",
+   "arg": "-ConfigurationType <тип конфигурации> -SignedFile <путь к cfe-файлу> [-File <путь к cfe-файлу>] [-Name <имя расширения>] [-Version <версия>] -digisign <имя файла с параметрами лицензирования>",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-ConfigurationType",
     "-File",
@@ -1093,12 +1508,14 @@
     "-Version",
     "-digisign"
    ],
-   "section": "7.4.7",
+   "section": [
+    "7.4.7"
+   ],
    "glued": false
   },
   "/TComp": {
    "arg": "[-None|-Deflate|-SDC|-lz4|-zstd]",
-   "mode": "общий",
+   "modes": [],
    "opts": [
     "-Deflate",
     "-None",
@@ -1106,68 +1523,89 @@
     "-lz4",
     "-zstd"
    ],
-   "section": "7.3.1",
+   "section": [
+    "7.3.1"
+   ],
    "glued": false
   },
   "/TechnicalSpecialistMode": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.5",
+   "section": [
+    "7.3.5"
+   ],
    "glued": false
   },
   "/TestClient": {
-   "arg": "[-TPort<Номер сетевого порта>] [-TestClientID<Идентификатор>] [-TURL=<",
-   "mode": "общий",
+   "arg": "[-TPort<Номер сетевого порта>] [-TestClientID<Идентификатор>] [-TURL=<АдресПубликации>]",
+   "modes": [],
    "opts": [
     "-TPort",
     "-TURL",
     "-TestClientID"
    ],
-   "section": "7.3.8",
+   "section": [
+    "7.3.8"
+   ],
    "glued": false
   },
   "/TestManager": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.8",
+   "section": [
+    "7.3.8"
+   ],
    "glued": false
   },
   "/UC": {
    "arg": "<код доступа>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.10",
-   "gloss": "код разрешения при установленной блокировке сеансов",
-   "glued": false
+   "section": [
+    "7.3.10"
+   ],
+   "glued": false,
+   "gloss": "код разрешения при установленной блокировке сеансов"
   },
   "/UILogRecorder": {
    "arg": "[–TPort<Номер сетевого порта>] [-File<Путь>]",
-   "mode": "общий",
+   "modes": [],
    "opts": [
-    "-File"
+    "-File",
+    "-TPort"
    ],
-   "section": "7.3.8",
+   "section": [
+    "7.3.8"
+   ],
    "glued": false
   },
   "/URL": {
    "arg": "<адрес>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.10",
+   "section": [
+    "7.3.10"
+   ],
    "glued": false
   },
   "/UnregServer": {
    "arg": "",
-   "mode": "OLE",
+   "modes": [
+    "OLE"
+   ],
    "opts": [],
-   "section": "7.6",
+   "section": [
+    "7.6"
+   ],
    "glued": false
   },
   "/UpdateCfg": {
-   "arg": "<имя cf или cfu файла> -Settings <имя файла настроек> [-IncludeObjects",
-   "mode": "DESIGNER",
+   "arg": "<имя cf или cfu файла> -Settings <имя файла настроек> [-IncludeObjectsByUnresolvedRefs | -ClearUnresolvedRefs] [-DumpListOfTwiceChangedProperties] [-force]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-ClearUnresolvedRefs",
     "-DumpListOfTwiceChangedProperties",
@@ -1175,12 +1613,16 @@
     "-Settings",
     "-force"
    ],
-   "section": "7.4.6",
+   "section": [
+    "7.4.6"
+   ],
    "glued": false
   },
   "/UpdateDBCfg": {
-   "arg": "[-Dynamic<Режим>] [-BackgroundStart] [-BackgroundCancel] [-BackgroundF",
-   "mode": "DESIGNER",
+   "arg": "[-Dynamic<Режим>] [-BackgroundStart] [-BackgroundCancel] [-BackgroundFinish [-Visible]] [-BackgroundSuspend] [-BackgroundResume] [-WarningsAsErrors] [-Server] [-v1|-v2] [-Extension <Имя расширения>] [-SessionTerminate <режим>]",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [
     "-BackgroundCancel",
     "-BackgroundFinish",
@@ -1193,124 +1635,157 @@
     "-SessionTerminate",
     "-Visible",
     "-WarningsAsErrors",
-    "-v1"
+    "-v1",
+    "-v2"
    ],
-   "section": "7.4.4",
-   "gloss": "обновить конфигурацию базы данных",
-   "glued": false
+   "section": [
+    "7.4.4"
+   ],
+   "glued": false,
+   "gloss": "обновить конфигурацию базы данных"
   },
   "/UseHwLicenses": {
    "arg": "<режим>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.11",
+   "section": [
+    "7.3.11"
+   ],
    "glued": true
   },
   "/UsePrivilegedMode": {
    "arg": "",
-   "mode": "ENTERPRISE",
+   "modes": [
+    "ENTERPRISE"
+   ],
    "opts": [],
-   "section": "7.3",
+   "section": [
+    "7.3.1"
+   ],
    "glued": false
   },
   "/UseTemplate": {
-   "arg": "",
-   "mode": "общий",
+   "arg": "<имя файла шаблона>",
+   "modes": [
+    "CREATEINFOBASE"
+   ],
    "opts": [],
-   "section": null,
+   "section": [
+    "7.2.3"
+   ],
    "glued": false
   },
   "/VL": {
    "arg": "<код локализации сеанса>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.6",
+   "section": [
+    "7.2.3",
+    "7.3.6"
+   ],
    "glued": true
   },
   "/Visible": {
    "arg": "",
-   "mode": "DESIGNER",
+   "modes": [
+    "DESIGNER"
+   ],
    "opts": [],
-   "section": "7.4.17",
+   "section": [
+    "7.4.17"
+   ],
    "glued": false
   },
   "/WA": {
    "arg": "<режим>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": true
   },
   "/WS": {
    "arg": "<url>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
+   "section": [
+    "7.3.1"
+   ],
    "glued": false
   },
   "/WSA": {
    "arg": "<режим>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": true
   },
   "/WSN": {
    "arg": "<имя>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/WSP": {
    "arg": "<пароль>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.2",
+   "section": [
+    "7.3.2"
+   ],
    "glued": false
   },
   "/Z": {
    "arg": "\"<Общий реквизит 1>,<Общий реквизит 2>,...,<Общий реквизит N>\"",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.1",
+   "section": [
+    "7.3.1"
+   ],
    "glued": false
   },
   "/debug": {
    "arg": "[<режим>] [-attach]",
-   "mode": "общий",
+   "modes": [],
    "opts": [
     "-attach"
    ],
-   "section": "7.3.7",
+   "section": [
+    "7.3.7"
+   ],
    "glued": false
   },
   "/debuggerURL": {
    "arg": "<адрес отладчика>",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.7",
+   "section": [
+    "7.3.7"
+   ],
    "glued": false
   },
   "/iTaxi": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.5",
+   "section": [
+    "7.3.5"
+   ],
    "glued": false
   },
   "/itdi": {
    "arg": "",
-   "mode": "общий",
+   "modes": [],
    "opts": [],
-   "section": "7.3.5",
-   "glued": false
-  },
-  "/url": {
-   "arg": "<ссылка>",
-   "mode": "ENTERPRISE",
-   "opts": [],
-   "section": "7.3",
+   "section": [
+    "7.3.5"
+   ],
    "glued": false
   }
  }

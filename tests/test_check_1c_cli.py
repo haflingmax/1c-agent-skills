@@ -4,6 +4,7 @@
 Запуск: python -m pytest tests/test_check_1c_cli.py -v
 """
 import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -52,12 +53,22 @@ def test_d13_glued_value_key_still_works():
                     "/DisableStartupDialogs /Out d:/l.log") == []
 
 
-# Пять выдуманных ключей, каждый из которых начинается со слитного: /L, /P, /N,
-# /O, /WSA. До правки все пятеро проходили молча с кодом 0 — то есть главное
+# Четыре выдуманных ключа, каждый из которых начинается со слитного: /P, /N,
+# /O, /WSA. До правки все проходили молча с кодом 0 — то есть главное
 # обещание проверяльщика («ловит выдуманный ключ») держалось только для ключей,
 # не начинающихся со слитного.
+#
+# /LoadCfgFromFile раньше был в этом списке пятым, потому что старый known_key
+# искал совпадение только среди двенадцати glued-ключей и ложно резолвил его
+# в /L. Формула «самое длинное совпадение среди ВСЕХ ключей», которой это
+# чинили сперва, сама оказалась неверна — её опроверг прогон /PRoxy2024,
+# см. test_longest_prefix_is_not_the_whole_rule. Верно другое: в совпадении
+# участвует ключ, чей документированный arg — «голое» позиционное значение
+# (absorbs_glued_tail). Для /LoadCfgFromFile это /LoadCfg, и хвост «FromFile»
+# уходит не в значение, а в позиционный аргумент. Проверено запуском (платформа
+# отвечает кодом 1, «Файл не обнаружен»), поэтому теперь у него другая пара —
+# см. INVENTED_LONGEST_MATCH_BLOCKS и test_longest_match_off_glued_prefix_blocks.
 INVENTED_ON_GLUED = [
-    ("/LoadCfgFromFile", "/L"),
     ("/Publish", "/P"),
     ("/NewConfiguration", "/N"),
     ("/OptimizeDatabase", "/O"),
@@ -102,6 +113,189 @@ def test_invented_key_off_glued_prefix_still_blocks():
     line = line_with("/DumpCfgToFile")
     assert any("DumpCfgToFile" in p for p in problems(line)), problems(line)
     assert exit_code(line) == 1
+
+
+def test_known_key_matches_platform_longest_match():
+    """Н-02, повторное ревью: «самое длинное совпадение среди ВСЕХ ключей» —
+    неверная формула буквально (см. test_longest_prefix_is_not_the_whole_rule
+    ниже, /PRoxy2024). Верно то, что она случайно предсказала правильно
+    здесь: /LoadCfg и /DumpCfg участвуют в совпадении, потому что их arg —
+    «голое» позиционное значение (absorbs_glued_tail), а /LoadCfg и /DumpCfg
+    оказываются длиннее /L — единственного короткого конкурента, у которого
+    в этих двух случаях реального длинного «под-ключевого» соперника нет.
+
+    Проверено запуском: /LoadCfgFromFile платформа разбирает как /LoadCfg
+    с позиционным аргументом FromFile, а не как /L со значением.
+    """
+    keys = CATALOG["ключи"]
+    assert mod.known_key("/LoadCfgFromFile", keys) == "/LoadCfg"
+    assert mod.known_key("/DumpCfgToFile", keys) == "/DumpCfg"
+    assert mod.known_key("/Lru", keys) == "/L"
+
+
+def test_longest_prefix_is_not_the_whole_rule():
+    """Н-02, находка ревью «новая блокировка законного» (Critical): формула
+    «самое длинное совпадение среди ВСЕХ ключей» блокировала бы законный
+    /PRoxy2024 — резолвился бы в /Proxy (длиннее /P), хотя платформа его
+    туда не резолвит вовсе.
+
+    Проверено запуском (2026-08-23): `/N Admin /PRoxy2024` и контрольный
+    `/N Admin /Padmin123` дают ОДИНАКОВУЮ ошибку «Пользователь ИБ не
+    идентифицирован» — платформа взяла /P + «Roxy2024» как пароль, а не
+    /Proxy. /Proxy при этом не сломан: с настоящими -PSrv/-PPort он прошёл
+    штатно, код 0 (см. docs/evidence/2026-08-22-blocking-rules.md).
+
+    Настоящий критерий — absorbs_glued_tail: /Proxy требует именованный
+    под-ключ первым делом (`-PSrv <адрес> ...`), глued-хвост эту форму не
+    удовлетворяет, поэтому /Proxy не участвует в совпадении вовсе, и
+    остаётся единственный кандидат — /P.
+    """
+    keys = CATALOG["ключи"]
+    assert mod.known_key("/PRoxy2024", keys) == "/P"
+    assert "/Proxy" in keys and not keys["/Proxy"].get("glued")
+
+
+def test_empty_arg_key_does_not_absorb_a_tail():
+    """Тот же критерий, другая форма отказа: /NoProxy вовсе не берёт
+    аргумента (`arg` пуст в cli-keys.json) — глued-хвосту нечем удовлетворить
+    пустую форму, и /NoProxy тоже не участвует в совпадении.
+
+    Проверено запуском (2026-08-23): `/NoProxyUser` даёт ту же ошибку
+    «Пользователь ИБ не идентифицирован», что и /N Admin — платформа взяла
+    /N + «oProxyUser» как имя пользователя, а не /NoProxy.
+    """
+    keys = CATALOG["ключи"]
+    assert mod.known_key("/NoProxyUser", keys) == "/N"
+    assert "/NoProxy" in keys and keys["/NoProxy"].get("arg") == ""
+
+
+# Резолвятся в ключ, чей arg — «голое» позиционное значение (absorbs_glued_tail
+# без учёта glued): хвост уходит не в значение, а в позиционный аргумент,
+# который платформа отправляет сама. Проверено запуском трижды и всякий раз
+# неверно: /DumpCfgToFile и /OutBase выгружают/логируют не в тот файл — тихая
+# порча (docs/evidence/2026-08-22-blocking-rules.md), /LoadCfgFromFile падает
+# кодом 1, «Файл не обнаружен». Во всех трёх платформа доказанно не делает
+# того, что написано в команде — правило 11 требует блокировки.
+INVENTED_LONGEST_MATCH_BLOCKS = [
+    ("/LoadCfgFromFile", "/LoadCfg"),
+    ("/DumpCfgToFile", "/DumpCfg"),
+    ("/OutBase", "/Out"),
+]
+
+
+@pytest.mark.parametrize("key,canon", INVENTED_LONGEST_MATCH_BLOCKS)
+def test_longest_match_off_glued_prefix_blocks(key, canon):
+    """Н-02: хвост-позиционный-аргумент — это не то же самое, что
+    хвост-значение (test_glued_prefix_invented_key_warns_and_does_not_block),
+    и различить их теперь можно: по форме arg резолвнутого ключа
+    (absorbs_glued_tail), а не по одному лишь факту «длиннее».
+    """
+    line = line_with(key)
+    out = problems(line)
+    assert any(key in p and canon in p for p in out), out
+    assert exit_code(line) == 1
+
+
+# Наивная «самая длинная строка длиннее» правильно предсказывала бы /Proxy и
+# /NoProxy как победителей — платформа выбирает короткий glued-ключ, потому
+# что длинный кандидат не может принять хвост как своё значение (см.
+# test_longest_prefix_is_not_the_whole_rule и test_empty_arg_key_does_not_absorb_a_tail
+# выше). Здесь — регресс на уровне check(): такие команды не блокируются.
+NOT_LONGEST_MATCH_STAYS_GLUED = [
+    ("/PRoxy2024", "/P"),
+    ("/NoProxyUser", "/N"),
+]
+
+
+@pytest.mark.parametrize("key,canon", NOT_LONGEST_MATCH_STAYS_GLUED)
+def test_named_subflag_key_does_not_steal_the_match(key, canon):
+    """Критическая находка повторного ревью: /Proxy (`-PSrv ...`) и /NoProxy
+    (пустой arg) длиннее /P и /N соответственно, но не могут принять хвост
+    как своё значение — платформа проверено откатывается к короткому
+    glued-ключу, и блокировать эти команды было бы новой блокировкой
+    законного.
+    """
+    line = line_with(key)
+    assert problems(line) == [], problems(line)
+    out = notes(line)
+    assert any(key in n and canon in n for n in out), out
+    assert exit_code(line) == 0
+
+
+def test_proxy_with_required_subflags_is_an_exact_match():
+    """/Proxy написан правильно (с обязательными -PSrv/-PPort) — это точное
+    совпадение по имени ключа, а не хвост-коллизия с /P. Проверено запуском:
+    команда с настоящими -PSrv/-PPort отработала, код 0, файл создан
+    (docs/evidence/2026-08-22-blocking-rules.md).
+    """
+    assert mod.known_key("/Proxy", CATALOG["ключи"]) == "/Proxy"
+    line = ("1cv8 DESIGNER /F d:/base /Proxy -PSrv 127.0.0.1 -PPort 8080 "
+            "/DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log")
+    assert problems(line) == [], problems(line)
+
+
+# Третий раунд ревью, Critical: absorbs_glued_tail() признаёт кандидатом на
+# поглощение около пятидесяти НЕ-glued ключей (/S, /WS, /C,
+# /ConfigurationRepositoryF и другие — все с «голым» arg), но блокировка по
+# одному лишь признаку «не glued» была обобщением без своего прогона.
+# Рецензент собрал шесть таких команд и прогнал одну: DESIGNER
+# /Snosuchhost9999:1541/nodb — платформа разобрала /S<адрес> ВЕРНО
+# (server_addr=nosuchhost9999, «Этот хост неизвестен» — ошибка DNS, не
+# разбора). Переподтверждено координатором тем же прогоном.
+def test_proven_and_only_proven_keys_block_the_tail():
+    """Блокировка (не предупреждение) — только у трёх ключей из
+    PROVEN_TAIL_MISPARSE, каждый подтверждён своим прогоном. /S не входит в
+    этот список и не должен блокироваться, несмотря на то что участвует в
+    absorbs_glued_tail так же, как /LoadCfg/DumpCfg/Out.
+    """
+    assert mod.PROVEN_TAIL_MISPARSE.keys() == {"/LoadCfg", "/DumpCfg", "/Out"}
+    assert "/S" not in mod.PROVEN_TAIL_MISPARSE
+
+
+def test_glued_address_key_is_not_blocked():
+    """Критическая находка третьего раунда ревью: /S<адрес> (клиент-
+    серверная база, раздел 7.3.1) не glued, но участвует в
+    absorbs_glued_tail — платформа проверено разбирает его верно, значит
+    блокировать нельзя.
+
+    Проверено запуском (2026-08-23): `DESIGNER /Snosuchhost9999:1541/nodb`
+    дал `server_addr=nosuchhost9999`, «Этот хост неизвестен» — ошибка DNS
+    несуществующего хоста, а не разбора ключа. Платформа взяла /S с
+    хвостом «nosuchhost9999:1541/nodb» как значение, ровно как задокумен-
+    тировано (раздел 7.3.1: `/S<адрес сервера>[:<порт>][/<имя базы>]`).
+    """
+    line = ("1cv8 DESIGNER /Snosuchhost9999:1541/nodb "
+            "/DisableStartupDialogs /Out d:/l.log")
+    assert mod.known_key("/Snosuchhost9999:1541/nodb", CATALOG["ключи"]) == "/S"
+    assert problems(line) == [], problems(line)
+    out = notes(line)
+    assert any("/S" in n and "не проверял" in n for n in out), out
+    assert exit_code(line) == 0
+    # /S всё равно засчитан как заданная база — не должно быть побочной
+    # «не задана база» из-за того, что резолвнутый ключ не попал в used.
+    assert not any("не задана база" in p for p in problems(line))
+
+
+@pytest.mark.parametrize("key,canon", [
+    ("/WShttp://example.com/base", "/WS"),
+    ("/Cmytext", "/C"),
+    ("/ConfigurationRepositoryFd:/storage", "/ConfigurationRepositoryF"),
+    ("/ConvertFilesd:/some.cf", "/ConvertFiles"),
+    ("/DumpDBCfgd:/db.cf", "/DumpDBCfg"),
+])
+def test_unproven_absorbing_family_warns_not_blocks(key, canon):
+    """Пять дальнейших ключей того же семейства (та же природа коллизии,
+    что у /S) — тоже не в PROVEN_TAIL_MISPARSE, тоже должны предупреждать,
+    а не блокировать. Живым запуском не проверялись поштучно (кроме /S) —
+    и текст предупреждения обязан честно говорить «не проверялось», а не
+    претендовать на проверку, которой не было.
+    """
+    line = "1cv8 DESIGNER /F d:/base %s /DisableStartupDialogs /Out d:/l.log" % key
+    assert mod.known_key(key, CATALOG["ключи"]) == canon
+    assert problems(line) == [], problems(line)
+    out = notes(line)
+    assert any(canon in n and "не проверял" in n for n in out), out
+    assert exit_code(line) == 0
 
 
 def test_glued_flag_is_present_and_small():
@@ -165,12 +359,17 @@ def test_d17_foreign_tool_returns_zero():
 def test_c1_ib_connection_string_sets_the_base():
     """/IBConnectionString задаёт базу наравне с /F.
 
+    М-16: докстрока и проверка раньше расходились — докстрока ссылалась на
+    запуск DESIGNER + /DumpCfg, а сама проверка гоняла ENTERPRISE без
+    /DumpCfg вовсе, то есть заявляла одно, а проверяла другое.
+
     Проверено запуском на 8.3.27.2325: DESIGNER /IBConnectionString
     "File=D:/1C/base/trade;" /DumpCfg создал файл того же размера, что и
-    выгрузка через /F (docs/evidence/2026-08-22-blocking-rules.md).
+    выгрузка через /F (docs/evidence/2026-08-22-blocking-rules.md, случай
+    «строка-соединения»). Теперь проверка гоняет ровно этот запуск.
     """
-    assert problems('1cv8 ENTERPRISE /IBConnectionString "File=d:/base;" '
-                    "/DisableStartupDialogs") == []
+    assert problems('1cv8 DESIGNER /IBConnectionString "File=d:/base;" '
+                    "/DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log") == []
 
 
 def test_c1_lowercase_base_key_is_allowed():
@@ -189,6 +388,23 @@ def test_no_base_still_blocks():
 def test_no_mode_still_blocks():
     """Неуказанный режим остаётся ошибкой: «Неопределен режим запуска», код 1."""
     out = problems("1cv8 /F d:/base /DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log")
+    assert any("режим запуска" in p for p in out), out
+
+
+def test_config_word_is_not_a_recognized_mode():
+    """М-14: CONFIG был в MODE_WORDS, хотя не документирован ни как режим
+    запуска 8.3.27, ни в тексте ошибки, ни у единого ключа каталога.
+
+    Раздел 7.3.3 руководства администратора называет CONFIG, но только как
+    замену, которую платформа выполняет САМА при автоподборе версии для
+    запуска настоящего 1С:Предприятия 8.0 (/AppAutoCheckVersion) — это
+    внутренний механизм для другого исполняемого файла, а не режим запуска,
+    который стоит писать в команде для 8.3.27. Раньше CONFIG в MODE_WORDS
+    молча гасил «не указан режим запуска» там, где такого режима у 8.3.27
+    нет вовсе.
+    """
+    out = problems("1cv8 CONFIG /F d:/base /DumpCfg d:/x.cf "
+                   "/DisableStartupDialogs /Out d:/l.log")
     assert any("режим запуска" in p for p in out), out
 
 
@@ -234,3 +450,244 @@ def test_wrong_mode_still_blocks():
     """
     assert any("режиме" in p for p in problems(
         "1cv8 ENTERPRISE /F d:/base /LoadCfg d:/n.cf /Out d:/l.log"))
+
+
+ITS_SOURCE = ROOT / "_its" / "cmdline" / "its-pril7-full.json"
+BUILDER = ROOT / "tools" / "build-cli-keys.py"
+
+
+def test_catalog_carries_class_two_fixes():
+    """Н-03, Н-08: то, что класс II добавил в каталог, из него не пропало.
+
+    I-3: эти три утверждения источник не открывают вовсе и в нём не
+    нуждаются — они читают закоммиченный cli-keys.json, который есть у
+    любого пользователя набора. Раньше они лежали под `pytest.skip` по
+    наличию `_its/`, и у пользователя, у которого выгрузки нет и быть не
+    должно, исчезали вместе с ней.
+    """
+    keys = CATALOG["ключи"]
+    assert "/@" in keys, "документированный ключ /@ (раздел 7.3.11) отсутствует"
+    assert isinstance(keys["/DumpResult"]["modes"], list), "режим обязан быть списком"
+    assert len(keys["/DumpResult"]["modes"]) >= 2, (
+        "/DumpResult описан в двух режимах: 7.2.3 и 7.4.17")
+
+
+def test_catalog_completeness_against_source(tmp_path, monkeypatch, capsys):
+    """Н-03, Н-08, Н-09: каталог сверяется с приложением 7 НАСТОЯЩЕЙ сверкой.
+
+    I-3: тест с этим именем источник не открывал ни разу. Он делал
+    `pytest.skip` по отсутствию `_its/` и дальше проверял сам каталог тремя
+    утверждениями — то есть проверял себя собой. Проверено: каталог с
+    дописанным вручную ключом `/ВыдуманныйКлюч` и подменёнными опциями
+    `/DumpCfg` он проходил.
+
+    Обещание спеки по классу II — «число ключей и опций сверено с
+    приложением 7 программно, а не глазами». Здесь оно и выполняется:
+    каталог пересобирается из источника тем же `tools/build-cli-keys.py`
+    во временный файл и сравнивается с закоммиченным ПОБАЙТНО. Такая сверка
+    ловит любую ручную правку порождаемого файла — и потерянный режим
+    (Н-03), и потерянный ключ (Н-08), и потерянные опции (Н-09).
+
+    Временная копия заводится копированием закоммиченного файла: сборщик
+    переносит из прежнего каталога поле `gloss` (пояснения писали мы, в
+    источнике их нет), и без копии сверка расходилась бы на них, а не на
+    составе.
+    """
+    if not ITS_SOURCE.exists():
+        pytest.skip("выгрузка ИТС недоступна: каталог _its/ под gitignore")
+
+    spec_b = importlib.util.spec_from_file_location("build_cli_keys", BUILDER)
+    builder = importlib.util.module_from_spec(spec_b)
+    sys.modules["build_cli_keys"] = builder
+    spec_b.loader.exec_module(builder)
+
+    committed = builder.DST.read_bytes()
+    tmp_dst = tmp_path / "cli-keys.json"
+    tmp_dst.write_bytes(committed)
+    monkeypatch.setattr(builder, "DST", tmp_dst)
+
+    assert builder.main() == 0, capsys.readouterr().out
+    rebuilt = tmp_dst.read_bytes()
+
+    assert rebuilt == committed, (
+        "каталог %s разошёлся с пересборкой из %s: закоммичено %d байт, "
+        "собрано %d. Порождаемый файл правили руками либо изменился источник"
+        % (builder.DST.relative_to(ROOT).as_posix(),
+           ITS_SOURCE.relative_to(ROOT).as_posix(),
+           len(committed), len(rebuilt)))
+
+
+AT_KEY_NOT_FIRST = ("1cv8 DESIGNER /F d:/base /DumpCfg d:/x.cf /@ d:/cmd.txt "
+                    "/DisableStartupDialogs /Out d:/l.log")
+
+
+def test_at_key_not_first_only_warns():
+    """Н-08 (найдено повторным ревью): /@ добавили в каталог, но не хватало
+    правила позиции — команда с /@ не первым ключом проходила без единого
+    замечания, хотя документация называет это неопределённым поведением.
+
+    Раздел 7.3.11 руководства администратора, дословно: «Команда /@ должна
+    быть первой или единственной командой командной строки запуска
+    приложения. Если команда /@ указана не первой ‑ поведение является
+    неопределенным.» «Неопределено» — не «запрещено»: платформой это не
+    проверено запуском, поэтому правило 11 архитектуры («блокировать только
+    доказанно неверное») требует предупреждения, а не ошибки.
+    """
+    assert problems(AT_KEY_NOT_FIRST) == [], problems(AT_KEY_NOT_FIRST)
+    out = notes(AT_KEY_NOT_FIRST)
+    assert any("/@" in n and "не первым" in n for n in out), out
+    assert exit_code(AT_KEY_NOT_FIRST) == 0
+
+
+@pytest.mark.parametrize("line", [
+    # /@ — первый /-ключ команды (перед ним только слово режима, не ключ).
+    "1cv8 DESIGNER /@ d:/cmd.txt /F d:/base /DisableStartupDialogs",
+    # /@ — единственный ключ команды вообще (условие «или единственной»).
+    "1cv8 /@ d:/cmd.txt",
+    # I-6: тот самый случай из документации, который блокировался. Режима и
+    # базы в строке нет — и не должно быть: содержимое файла заменит собой
+    # командную строку целиком.
+    "1cv8 /@d:/cmd.txt",
+    "1cv8 DESIGNER /@ d:/cmd.txt",
+])
+def test_at_key_first_is_clean(line):
+    """Законные команды с /@ первым (или единственным) ключом.
+
+    I-6: раньше докстрока обещала «правило не должно заводить новую
+    блокировку», а проверялось только отсутствие замечания «не первым» —
+    заявление шире доказательства. При этом «1cv8 /@ d:/cmd.txt» как раз
+    блокировалась двумя ошибками: K002 «не указан режим» и K007 «не задана
+    база», код 1.
+
+    Раздел 7.3.11 дословно: «Во время обработки командной строки, содержимое
+    файла полностью заменит собой командную строку запускаемого приложения»,
+    и отсюда «команда /@ должна быть первой или единственной». Режим, база и
+    /DisableStartupDialogs лежат в файле — требовать их в самой строке значит
+    блокировать документированную команду. Global Constraints плана называют
+    новую блокировку законного Critical.
+    """
+    assert problems(line) == [], problems(line)
+    assert exit_code(line) == 0, problems(line)
+    assert not any("/@" in n and "не первым" in n for n in notes(line)), notes(line)
+    assert not any(n.startswith("K014") or "K014" in n for n in notes(line)), notes(line)
+
+
+@pytest.mark.parametrize("line", [
+    # Без /@ требование режима и базы остаётся: I-6 сужает правило до /@,
+    # а не отменяет его.
+    "1cv8 DESIGNER /DumpCfg d:/a.cf",
+    "1cv8 /DumpCfg d:/a.cf",
+])
+def test_missing_base_still_blocks_without_at_key(line):
+    """I-6 не имеет права ослабить проверку там, где /@ нет."""
+    out = problems(line)
+    assert any("K007" in p for p in out), out
+    assert exit_code(line) == 1
+
+
+# Самое дорогое ограничение проекта: «скрипт блокирует только противоречащее
+# документированному составу приложения 7; новая блокировка законного —
+# Critical». За ветку блокировка законного вносилась дважды, и оба раза её
+# ловило только ревью — то есть человек, а не прогон. Здесь она ловится
+# прогоном: каждая команда 1cv8, которую навык показывает читателю как рабочую,
+# обязана проходить собственный проверяльщик с кодом 0.
+_CMD_RE = re.compile(r"(?:^|[\s\"'`(])(1cv8(?:\.exe)?\s+[^\r\n`]*)")
+
+
+def _commands_from_skill_bodies():
+    """Команды 1cv8 из SKILL.md, references/ и scripts/ обоих навыков."""
+    targets = (sorted(ROOT.glob("skills/*/SKILL.md"))
+               + sorted(ROOT.glob("skills/*/references/*.md"))
+               + sorted(ROOT.glob("skills/*/scripts/*.py")))
+    found = []
+    for f in targets:
+        rel = f.relative_to(ROOT).as_posix()
+        for lineno, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            for m in _CMD_RE.finditer(line):
+                cmd = m.group(1).strip().rstrip("\\`\"'").strip()
+                if cmd:
+                    found.append(pytest.param(cmd, id="%s:%d" % (rel, lineno)))
+    return found
+
+
+_SKILL_COMMANDS = _commands_from_skill_bodies()
+
+
+def test_skill_bodies_actually_contain_commands():
+    """Сторож самого сторожа: пустой список молча прошёл бы за успех."""
+    assert len(_SKILL_COMMANDS) >= 8, _SKILL_COMMANDS
+
+
+@pytest.mark.parametrize("line", _SKILL_COMMANDS)
+def test_no_command_from_skill_bodies_is_blocked(line):
+    """Ни одна показанная навыком команда не блокируется проверяльщиком."""
+    out = problems(line)
+    assert out == [], "команда из тела навыка заблокирована: %s -> %s" % (line, out)
+
+
+@pytest.mark.parametrize("flag", ["--help", "-h"])
+def test_help_flag_prints_docstring_and_returns_zero(flag):
+    """М-25: скрипт не отвечал на --help вовсе — argv[0] == "--help" уходил
+    как обычная команда на проверку, tool.startswith("1cv8") давал False, и
+    вместо помощи печаталось «--help вне компетенции проверяльщика».
+    """
+    out = subprocess.run([sys.executable, str(SCRIPT), flag],
+                         capture_output=True, text=True,
+                         encoding="utf-8", errors="replace")
+    assert out.returncode == 0, out
+    assert "вне компетенции" not in out.stdout, out.stdout
+    assert "Проверка командной строки" in out.stdout, out.stdout
+
+
+# Н-14: диагностики получили идентификатор — на них можно сослаться и их
+# можно процитировать в тесте, не цепляясь за обрывок прозы, которую правка
+# текста меняет незаметно для теста (docs/reviews/2026-08-23-core-review.md).
+CODE_PATTERN = re.compile(r"^K\d{3}$")
+
+
+def test_diagnostic_codes_are_unique_and_well_formed():
+    """Каждая константа K_* — трёхзначный код без пропусков и дублей."""
+    codes = [v for k, v in vars(mod).items()
+             if k.startswith("K_") and isinstance(v, str)]
+    assert len(codes) >= 10, codes  # ~10 диагностик, как называет находка
+    assert all(CODE_PATTERN.match(c) for c in codes), codes
+    assert len(codes) == len(set(codes)), "коды не должны повторяться: %s" % codes
+
+
+def test_format_diag_splits_code_from_text():
+    """format_diag() кладёт код в скобки рядом с уровнем, а не в текст:
+    «[ошибка K999] текст», по образцу линтеров — ровно то, что просит находка.
+    """
+    assert mod.format_diag("ошибка", "K999 текст без кода") == "[ошибка K999] текст без кода"
+    # Строка без кода (гипотетическая) не ломается — код просто не появляется.
+    assert mod.format_diag("внимание", "текст совсем без кода") == "[внимание] текст совсем без кода"
+
+
+def test_no_base_error_is_addressable_by_code():
+    """Живой прогон печатает код диагностики, а не только прозу — K007 можно
+    процитировать в доказательстве или отключить точечно в будущем, не трогая
+    формулировку. Проверено запуском самого скрипта, не только check()."""
+    out = subprocess.run(
+        [sys.executable, str(SCRIPT),
+         "1cv8 DESIGNER /DumpCfg d:/x.cf /DisableStartupDialogs /Out d:/l.log"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert out.returncode == 1, out
+    assert "[ошибка K007]" in out.stdout, out.stdout
+
+
+def test_proven_misparse_error_is_addressable_by_code():
+    """K004 — тот же принцип для блокировки PROVEN_TAIL_MISPARSE."""
+    out = subprocess.run(
+        [sys.executable, str(SCRIPT), line_with("/DumpCfgToFile")],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert out.returncode == 1, out
+    assert "[ошибка K004]" in out.stdout, out.stdout
+
+
+def test_foreign_tool_note_is_addressable_by_code():
+    """K017 — то же для границы компетенции (Д-17)."""
+    out = subprocess.run(
+        [sys.executable, str(SCRIPT), FOREIGN],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert out.returncode == 0, out
+    assert "[внимание K017]" in out.stdout, out.stdout
