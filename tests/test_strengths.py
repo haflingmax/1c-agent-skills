@@ -308,3 +308,35 @@ def test_strengths_mapping_is_complete_and_names_real_tests():
         existing |= set(re.findall(r"^def (test_\w+)", f.read_text(encoding="utf-8"), re.M))
     assert named <= existing, "таблица ссылается на несуществующие тесты: %s" % sorted(
         named - existing)
+
+
+def test_core_names_collected_skills_inline():
+    """I-7: состав набора агент узнаёт из самого навыка, а не из чужой среды.
+
+    Ядро отсылало за составом «в README или вывод `/plugin`». `/plugin` —
+    команда Claude Code, в Kilo и Codex её нет; README лежит вне `skills/`,
+    а манифест Codex указывает только на `./skills/`. Это ровно тот дефект,
+    от которого набор лечится в трёх других местах: правило «нет привязки к
+    одной среде» в `references/architecture.md`, механический запрет
+    `${CLAUDE_*}` в `check-skills.py`, разбор опровергнутой О-17 про знание,
+    положенное туда, куда работающий агент не заглянет.
+
+    Теперь состав назван строкой в самом навыке — и строка обязана совпадать
+    с содержимым `skills/`, иначе она устареет молча.
+    """
+    core = ROOT / "skills" / "developing-1c-configurations" / "SKILL.md"
+    text = core.read_text(encoding="utf-8")
+
+    assert "/plugin" not in text, (
+        "ядро снова отсылает к команде, которой нет в Kilo и Codex")
+
+    m = re.search(r"\*\*Собран(?:ы)? сейчас [^*]*?:([^*]+)\*\*", text)
+    assert m, "в ядре нет строки «Собран сейчас …» с составом набора"
+    named = set(re.findall(r"`([a-z0-9-]+)`", m.group(1)))
+
+    collected = {d.name for d in (ROOT / "skills").iterdir()
+                 if d.is_dir() and (d / "SKILL.md").exists()}
+    collected.discard("developing-1c-configurations")
+    assert named == collected, (
+        "строка состава в ядре разошлась с skills/: названо %s, лежит %s"
+        % (sorted(named), sorted(collected)))
