@@ -1,0 +1,160 @@
+"""Регрессия поиска по корпусам ИТС.
+
+Корпуса не помещаются в окно: 1,1 млн знаков стандартов, 9,2 млн методических
+материалов, 5,4 млн руководства разработчика. Работать с ними можно только
+запросом, и от инструмента требуется одно: **не давать ответа, который выглядит
+как ответ, не будучи им**.
+
+Отсюда три свойства, которые здесь сторожатся:
+
+  - без выгрузки — понятный отказ, а не пустой результат. Пустой результат
+    читался бы как «в документации об этом ничего нет», а это другое;
+  - «ничего не найдено» отличается от «этого нет в документации» и говорит
+    об этом прямо;
+  - каждая выдержка несёт адрес документа: утверждение без ссылки на источник
+    в этом наборе не считается доказанным.
+
+Запуск: python -m pytest tests/test_its_search.py -v
+"""
+import importlib.util
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = ROOT / "tools" / "its-search.py"
+ITS = ROOT / "_its"
+
+spec = importlib.util.spec_from_file_location("its_search", SCRIPT)
+mod = importlib.util.module_from_spec(spec)
+sys.modules["its_search"] = mod
+spec.loader.exec_module(mod)
+
+есть_выгрузка = (ITS / "v8std-full.json").is_file()
+needs_its = pytest.mark.skipif(not есть_выгрузка, reason="_its/ под gitignore")
+
+
+def прогон(*args, cwd=None):
+    return subprocess.run([sys.executable, str(SCRIPT), *args],
+                          capture_output=True, text=True, encoding="utf-8",
+                          cwd=str(cwd or ROOT))
+
+
+# --- отказ вместо пустоты ---------------------------------------------------
+
+def test_refuses_without_corpus(tmp_path, monkeypatch):
+    """Нет выгрузки — код 2 и объяснение, а не пустой ответ.
+
+    Пустой ответ здесь опаснее ошибки: он читается как «в документации
+    об этом ничего нет», хотя означает «мы не смотрели».
+    """
+    monkeypatch.setattr(mod, "ITS", tmp_path / "нет")
+    with pytest.raises(SystemExit) as e:
+        mod.нет_выгрузки()
+    assert e.value.code == 2
+
+
+def test_missing_corpus_message_names_the_reason():
+    """Сообщение обязано объяснить, почему выгрузки нет, а не просто ругнуться."""
+    import io, contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf), pytest.raises(SystemExit):
+        mod.нет_выгрузки()
+    t = buf.getvalue()
+    assert "gitignore" in t
+    assert "авторизованной" in t
+    assert "разные вещи" in t
+
+
+# --- разбор запроса ---------------------------------------------------------
+
+def test_search_ignores_yo():
+    """Е и Ё не различаются: в ИТС встречаются оба написания одного слова."""
+    import re
+    ключ = re.escape("учет").replace("е", "[её]")
+    assert re.search(ключ, "учёт", re.IGNORECASE)
+    assert re.search(ключ, "учет", re.IGNORECASE)
+
+
+# --- на живой выгрузке ------------------------------------------------------
+
+@needs_its
+def test_section_lookup_returns_expected_counts():
+    """Счёт по разделам сверен с architecture.md — там эти числа записаны."""
+    assert len(mod.раздел("Общие вопросы безопасности")) == 8
+    assert len(mod.раздел("Требования по локализации")) == 11
+    assert len(mod.раздел("Настройка прав доступа к данным")) == 7
+    assert len(mod.раздел("Соглашения при написании кода")) == 35
+
+
+@needs_its
+def test_unknown_section_is_not_silently_empty():
+    """Опечатка в названии не должна выглядеть как «раздел пуст»."""
+    assert mod.раздел("такого раздела нет") == []
+    r = прогон("--раздел", "такого раздела нет")
+    assert r.returncode == 1
+    assert "Есть такие" in r.stdout
+
+
+@needs_its
+def test_every_hit_carries_a_source_address():
+    """Выдержка без адреса документа бесполезна: сослаться не на что."""
+    hits = mod.найти("ПравоДоступа", ["v8std"], 200, 5)
+    assert hits
+    for база, заголовок, адрес, текст in hits:
+        assert адрес, (база, заголовок)
+        assert текст.strip()
+
+
+@needs_its
+def test_nothing_found_says_it_is_not_a_verdict():
+    """«Не нашлось» и «в документации этого нет» — разные утверждения."""
+    r = прогон("--найти", "ЗаведомоНесуществующийТерминXYZ")
+    assert r.returncode == 1
+    assert "ничего не найдено" in r.stdout
+    assert "не значит" in r.stdout
+
+
+@needs_its
+def test_document_lookup_by_std_number():
+    """Стандарт достаётся по номеру — так на него ссылаются в тексте."""
+    база, x = mod.документ("std724")
+    assert база == "v8std"
+    assert "повторным использованием" in x["title"].lower()
+    assert x["chars"] > 1000
+
+
+@needs_its
+def test_corpus_covers_the_three_uncovered_sections():
+    """Три раздела, которые референсы не покрывали, обязаны иметь источник.
+
+    Ради них выгрузка и делалась: без стандартов писать их не из чего.
+    """
+    for имя, ожидание in [("Общие вопросы безопасности", 8),
+                          ("Клиент-серверное взаимодействие", 8),
+                          ("Требования по локализации", 11)]:
+        статьи = mod.раздел(имя)
+        assert len(статьи) == ожидание, имя
+        assert sum(x["chars"] for x in статьи) > 30000, имя
+
+
+@needs_its
+def test_service_document_is_marked_and_not_counted_in_sections():
+    """std788 — журнал изменений системы стандартов, а не стандарт.
+
+    Он приходит из оглавления 319-м и ни в одном разделе не значится;
+    в корпусе помечен служебным, чтобы не попал в счёт по разделам.
+    """
+    корпус = json.loads((ITS / "v8std-full.json").read_text(encoding="utf-8"))
+    служебные = [x for x in корпус["статьи"] if x.get("служебная")]
+    assert len(служебные) == 1
+    assert str(служебные[0]["id"]) == "788"
+    assert корпус["статей"] == 319
+    в_разделах = set()
+    for имя in mod.имена_разделов():
+        в_разделах |= {str(x["id"]) for x in mod.раздел(имя)}
+    assert "788" not in в_разделах
+    assert len(в_разделах) == 318

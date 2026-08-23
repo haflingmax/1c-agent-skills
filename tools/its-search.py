@@ -1,0 +1,205 @@
+"""Поиск по выгруженным корпусам ИТС.
+
+Корпуса велики: система стандартов 1,1 млн знаков, методические материалы
+9,2 млн, руководство разработчика 5,4 млн, руководство администратора 2,2 млн.
+Целиком в окно не помещается ни один, поэтому работать с ними надо запросом,
+а не чтением.
+
+Инструмент отвечает на два вопроса:
+
+  что говорит ИТС про X   — `--найти "X"`, выдержки с путём к документу
+  что лежит в разделе Y   — `--раздел "Y"`, перечень стандартов области
+
+Выдержка всегда несёт адрес документа: утверждение без ссылки на источник
+в этом наборе не считается доказанным.
+
+Примеры:
+  python tools/its-search.py --найти "повторное использование возвращаемых значений"
+  python tools/its-search.py --найти "РольДоступна" --база v8std --окно 400
+  python tools/its-search.py --раздел "Общие вопросы безопасности"
+  python tools/its-search.py --документ std724
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+ITS = ROOT / "_its"
+
+БАЗЫ = {
+    "v8std": (ITS / "v8std-full.json", "статьи", "система стандартов"),
+    "metod8dev": (ITS / "metod8dev-full.json", "статьи", "методические материалы"),
+    "devguide": (ITS / "cmdline" / "its-devguide-full.json", "docs", "руководство разработчика"),
+    "admin": (ITS / "cmdline" / "its-admin-full.json", None, "руководство администратора"),
+    "pril7": (ITS / "cmdline" / "its-pril7-full.json", None, "приложение 7: ключи командной строки"),
+}
+
+
+def fail(message, code=2):
+    sys.stdout.write(message + "\n")
+    raise SystemExit(code)
+
+
+def нет_выгрузки():
+    fail("[ошибка] нет каталога %s или он пуст.\n"
+         "Корпуса ИТС лежат под gitignore и есть не на каждой машине: они сняты\n"
+         "из авторизованной сессии и в репозиторий не идут (решение 9 общего плана).\n"
+         "Без них поиск невозможен. Пустой ответ не выдаётся намеренно: он выглядел бы\n"
+         "как «в документации об этом ничего нет», а это разные вещи." % ITS)
+
+
+def загрузить(имя):
+    """Документы одной базы как список (заголовок, текст, адрес)."""
+    путь, ключ, _ = БАЗЫ[имя]
+    if not путь.is_file():
+        return []
+    d = json.loads(путь.read_text(encoding="utf-8"))
+    out = []
+    if ключ and isinstance(d.get(ключ), list):
+        for x in d[ключ]:
+            if x.get("text"):
+                out.append((x.get("title") or x.get("id", ""), x["text"],
+                            x.get("url") or x.get("src") or str(x.get("id", ""))))
+    elif isinstance(d, dict):
+        # руководство администратора и приложение 7 — плоские объекты
+        def обойти(узел, путь_ключа):
+            if isinstance(узел, str) and len(узел) > 500:
+                out.append((" / ".join(путь_ключа), узел, имя + ":" + "/".join(путь_ключа)))
+            elif isinstance(узел, dict):
+                for k, v in узел.items():
+                    обойти(v, путь_ключа + [str(k)])
+            elif isinstance(узел, list):
+                for i, v in enumerate(узел):
+                    обойти(v, путь_ключа + [str(i)])
+        обойти(d, [])
+    return out
+
+
+def найти(запрос, базы, окно, предел):
+    """Выдержки вокруг совпадений. Регистр не важен, е и ё не различаются."""
+    ключ = re.escape(запрос).replace("е", "[её]").replace("Е", "[ЕЁ]")
+    rx = re.compile(ключ, re.IGNORECASE)
+    найдено = []
+    for имя in базы:
+        for заголовок, текст, адрес in загрузить(имя):
+            for m in rx.finditer(текст):
+                s = max(0, m.start() - окно // 2)
+                e = min(len(текст), m.end() + окно // 2)
+                выдержка = re.sub(r"\s+", " ", текст[s:e]).strip()
+                найдено.append((имя, заголовок, адрес, выдержка))
+                if len(найдено) >= предел:
+                    return найдено
+    return найдено
+
+
+def раздел(название):
+    """Стандарты названной области системы стандартов, с размерами."""
+    toc = ITS / "v8std-toc.json"
+    if not toc.is_file():
+        fail("[ошибка] нет %s — оглавление снимается из авторизованной сессии ИТС.\n"
+             "Без авторизации оно неполно: проверено 23.08.2026, неавторизованный обход\n"
+             "терял приписку 19 стандартов к разделам." % toc)
+    страницы = json.loads(toc.read_text(encoding="utf-8"))["страницы"]
+    корпус = {str(x["id"]): x for x in
+              json.loads((ITS / "v8std-full.json").read_text(encoding="utf-8"))["статьи"]}
+
+    # Имена разделов берём из дерева, а не из заголовков страниц: заголовок
+    # у страниц оглавления пуст, а дерево несёт человеческие названия.
+    # Соединяем по адресу — он есть в обоих и совпадает точно.
+    дерево = json.loads((ITS / "v8std-tree.json").read_text(encoding="utf-8"))["tree"]
+    имя_по_адресу = {n["href"].rstrip("/"): n["text"].strip() for n in дерево}
+
+    цель = название.strip().lower()
+    ids, попал = [], False
+    for p in страницы:
+        адрес = p["href"].rstrip("/")
+        имя = имя_по_адресу.get(адрес, "")
+        if not имя or цель not in имя.lower():
+            continue
+        попал = True
+        ids.extend(p["статьи"])
+        # раздел верхнего уровня перечисляет подразделы, а статьи лежат в них
+        for q in страницы:
+            if q["href"].rstrip("/").startswith(адрес + "/"):
+                ids.extend(q["статьи"])
+    if not попал:
+        return []
+    return [корпус[i] for i in dict.fromkeys(ids) if i in корпус]
+
+
+def имена_разделов():
+    """Названия разделов верхнего уровня — чтобы не гадать при опечатке."""
+    дерево = json.loads((ITS / "v8std-tree.json").read_text(encoding="utf-8"))["tree"]
+    return [n["text"].strip() for n in дерево if n["depth"] == 1]
+
+
+def документ(имя):
+    """Один документ целиком по номеру стандарта или по идентификатору."""
+    n = re.sub(r"^std", "", имя, flags=re.IGNORECASE)
+    for база in ("v8std", "metod8dev"):
+        путь = БАЗЫ[база][0]
+        if not путь.is_file():
+            continue
+        for x in json.loads(путь.read_text(encoding="utf-8"))["статьи"]:
+            if str(x.get("id")) == n or str(x.get("std") or "") == n:
+                return база, x
+    return None, None
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--найти")
+    ap.add_argument("--раздел")
+    ap.add_argument("--документ")
+    ap.add_argument("--база", action="append", choices=sorted(БАЗЫ),
+                    help="где искать; по умолчанию везде")
+    ap.add_argument("--окно", type=int, default=300, help="знаков вокруг совпадения")
+    ap.add_argument("--предел", type=int, default=25, help="сколько выдержек показать")
+    args = ap.parse_args()
+
+    if not ITS.is_dir() or not any(ITS.iterdir()):
+        нет_выгрузки()
+
+    if args.документ:
+        база, x = документ(args.документ)
+        if not x:
+            fail("[не найдено] документа «%s» нет ни в системе стандартов, "
+                 "ни в методических материалах" % args.документ, 1)
+        print("=== %s | %s | %s" % (база, x.get("title", ""), x.get("url", "")))
+        print(x["text"])
+        return
+
+    if args.раздел:
+        статьи = раздел(args.раздел)
+        if not статьи:
+            fail("[не найдено] раздела «%s» нет в оглавлении системы стандартов.\n"
+                 "Есть такие:\n  %s" % (args.раздел, "\n  ".join(имена_разделов())), 1)
+        print("Раздел «%s»: стандартов %d, знаков %d\n"
+              % (args.раздел, len(статьи), sum(x["chars"] for x in статьи)))
+        for x in статьи:
+            print("  std%-4s %-72s %6d зн." % (x.get("std") or "?", x["title"][:72], x["chars"]))
+        return
+
+    if not args.найти:
+        ap.print_help()
+        raise SystemExit(1)
+
+    базы = args.база or list(БАЗЫ)
+    выдержки = найти(args.найти, базы, args.окно, args.предел)
+    if not выдержки:
+        print("[ничего не найдено] «%s» в базах: %s" % (args.найти, ", ".join(базы)))
+        print("Это не значит, что в документации об этом нет: возможно, тема названа")
+        print("другими словами. Попробуйте иную формулировку, прежде чем делать вывод.")
+        raise SystemExit(1)
+    print("совпадений показано: %d\n" % len(выдержки))
+    for база, заголовок, адрес, текст in выдержки:
+        print("--- %s | %s" % (база, заголовок[:90]))
+        print("    %s" % адрес)
+        print("    …%s…\n" % текст)
+
+
+if __name__ == "__main__":
+    main()
