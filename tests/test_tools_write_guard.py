@@ -50,6 +50,7 @@ READS_ONLY = {
     "merge-coverage-backlog.py": "сводит перечень тем в docs/, skills/ не трогает",
     "its-search.py": "только читает выгрузку ИТС, ничего не пишет",
     "merge-its-verification.py": "сводит сверку с ИТС в docs/, skills/ не трогает",
+    "merge-closure.py": "сводит разбор «чем закрывается» в docs/, skills/ не трогает",
 }
 
 
