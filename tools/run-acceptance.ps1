@@ -287,7 +287,17 @@ foreach ($envName in $Envs) {
         $obj = $r.Result
         Write-Line @{
           event = 'run-done'; env = $envName; pair = $pair.Id; pol = $pol
-          skill = $obj.Навык; questionsRaw = $obj.Вопросов; log = $obj.Журнал
+          # Булева «навык сработал» мало, и run-prompt.ps1 сам это говорит:
+          # «сработал хоть какой-то навык» и «сработал нужный» — разные вопросы.
+          # Имена вычислялись и выбрасывались. Пока детектор был зашит двумя
+          # именами, разница пряталась; как только он стал брать перечень
+          # из skills/, чужой навык на задаче раздела начал засчитываться
+          # как пройденная приёмка. Проверено запуском 24.08.2026: в Kilo
+          # «смени режим блокировок» и «заведи индекс» поднимали
+          # 1c-build-and-db, а не 1c-queries.
+          skill = $obj.Навык; skills = $obj.Навыки
+          expectedSkill = $pair.Skill
+          questionsRaw = $obj.Вопросов; log = $obj.Журнал
           time = (Get-Date).ToString('o')
         }
 

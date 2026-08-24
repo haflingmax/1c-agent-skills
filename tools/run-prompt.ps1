@@ -87,6 +87,12 @@ if ($Env -eq 'claude') {
   # вызова навыка прозой, вызов виден только как структурный tool_use-элемент JSONL.
   $navyk = $false
   $questions = 0
+  # Имя навыка Claude кладёт в input.skill — проверено по журналу приёмки
+  # 24.08.2026: {"name":"Skill","input":{"skill":"1c-queries"}}. Без имени
+  # булева отвечает лишь на «сработал хоть какой-то», а нужен ответ
+  # на «сработал нужный»: чужой навык на задаче раздела — это провал
+  # маршрутизации, а не пройденная приёмка.
+  $names = @()
   foreach ($line in ($txt -split "`r?`n")) {
     $line = $line.Trim()
     if (-not $line) { continue }
@@ -94,7 +100,11 @@ if ($Env -eq 'claude') {
     $content = $evt.message.content
     if ($null -eq $content -or $content -is [string]) { continue }
     foreach ($item in $content) {
-      if ($item.type -eq 'tool_use' -and $item.name -eq 'Skill') { $navyk = $true }
+      if ($item.type -eq 'tool_use' -and $item.name -eq 'Skill') {
+        $navyk = $true
+        $n = [string]$item.input.skill
+        if ($n) { $names += ($n -replace '^.*:', '') }
+      }
       if ($evt.type -eq 'assistant' -and $item.type -eq 'text') {
         $questions += ([regex]::Matches($item.text, '\?')).Count
       }
