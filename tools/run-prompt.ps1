@@ -50,6 +50,38 @@ switch ($Env) {
   }
 }
 $txt = if (Test-Path $log) { Get-Content $log -Raw -Encoding Unicode } else { '' }
+
+# Пустой журнал — это НЕ «навык не сработал», это «прогон не состоялся».
+# Дважды за один день приёмка выдала второе за первое: сперва на Kilo без
+# исполняемого файла, потом на Codex, где все шесть журналов оказались
+# нулевого размера. В обоих случаях вердикт был «выполнено, навык False» —
+# неотличимо от честного отказа навыка выбраться, и оба раза он молча
+# засчитывался как результат по набору.
+#
+# Отказ здесь громкий намеренно: лучше оборвать приёмку, чем принести
+# цифру, за которой ничего нет.
+if ([string]::IsNullOrWhiteSpace($txt)) {
+  throw ("прогон в среде '$Env' не дал никакого вывода: $log пуст. " +
+         "Это отсутствие прогона, а не отказ навыка. " +
+         "Проверить доступность среды прежде, чем толковать результат.")
+}
+
+# Перечень имён навыков берётся из самого набора, а НЕ зашивается списком.
+# Был зашит: '(developing-1c-configurations|1c-build-and-db)'. Как только
+# появился третий навык (1c-queries), приёмка стала выдавать «навык не
+# сработал» на прогонах, где он фактически вызывался, — проверено запуском
+# 24.08.2026: в журнале Kilo лежит событие tool_use с
+# part.state.input.name == "1c-queries", а вердикт был False.
+#
+# Дефект тихий и системный: он повторится на каждом из двенадцати оставшихся
+# разделов, и каждый раз будет выглядеть как «раздел не выбирается»,
+# то есть как дефект набора, а не прибора.
+$skillNames = Get-ChildItem (Join-Path $PSScriptRoot '..\skills') -Directory |
+  ForEach-Object { $_.Name }
+if (-not $skillNames) { throw "не найдено ни одного навыка в skills/ — мерить нечем" }
+$skillAlt = ($skillNames | ForEach-Object { [regex]::Escape($_) }) -join '|'
+$skillPattern = "(^|:)($skillAlt)$"      # имя голое либо с префиксом плагина
+$skillSubstr  = "($skillAlt)"            # для сред без структурного журнала
 if ($Env -eq 'claude') {
   # Текстовый регэксп тут не работает: claude -p в stream-json не печатает баннер
   # вызова навыка прозой, вызов виден только как структурный tool_use-элемент JSONL.
@@ -87,7 +119,7 @@ if ($Env -eq 'claude') {
     try { $evt = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
     if ($evt.type -eq 'tool_use' -and $evt.part.tool -eq 'skill') {
       $name = [string]$evt.part.state.input.name
-      if ($name -match '(^|:)(developing-1c-configurations|1c-build-and-db)$') {
+      if ($name -match $skillPattern) {
         $navyk = $true
         # Имя нужно отдельно от признака: «сработал хоть какой-то навык»
         # и «сработал нужный» — разные вопросы, и при выборе между вариантами
@@ -102,7 +134,7 @@ if ($Env -eq 'claude') {
 } else {
   # codex: структурный журнал для него не проверялся (только Kilo и Claude
   # — М-18 называет именно их), остаётся прежний подстрочный поиск.
-  $navyk = [bool]($txt -match 'developing-1c-configurations|1c-build-and-db')
+  $navyk = [bool]($txt -match $skillSubstr)
   $questions = ([regex]::Matches($txt, '\?')).Count
 }
 if ($null -eq $names) { $names = @() }
