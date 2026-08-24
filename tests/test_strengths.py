@@ -361,3 +361,45 @@ def test_readme_marks_unverified_install_paths():
         line = next((r for r in rows if env in r), None)
         assert line and "нет" in line.lower(), (
             "%s подан как проверенный, хотя прогона не было" % env)
+
+
+def test_catalogue_budget_numbers_are_current():
+    """Числа бюджета каталога в architecture.md обязаны совпадать с skills/.
+
+    Правило 9 архитектуры объясняет, почему бюджет Codex тратится
+    произведением «число навыков × длина описания», и иллюстрирует это
+    измеренными числами. Иллюстрация устарела молча: текст называл ядро
+    в 332 знака и `1c-build-and-db` в 228, когда на деле было 304 и 384 —
+    описание `1c-build-and-db` расширили при починке дефекта, а этот абзац
+    не тронули.
+
+    Тот же класс, что и I-7 (`test_core_names_collected_skills_inline`):
+    утверждение о содержимом набора, записанное прозой, живёт своей жизнью.
+    Разница в том, что там устаревал состав, а здесь — замер, на который
+    опирается правило.
+    """
+    arch = (ROOT / "skills" / "developing-1c-configurations"
+            / "references" / "architecture.md").read_text(encoding="utf-8")
+
+    заявлено = {}
+    # Таблица лежит внутри нумерованного пункта и потому идёт с отступом —
+    # шаблон, привязанный к самому началу строки, её не находил.
+    for имя, знаков in re.findall(r"^\s*\|\s*`([a-z0-9-]+)`\s*\|\s*(\d+)\s*\|\s*$",
+                                  arch, re.M):
+        заявлено[имя] = int(знаков)
+    assert заявлено, (
+        "в architecture.md больше нет таблицы «Навык | Знаков в описании» — "
+        "либо её убрали, либо сломали разметку; правило 9 без неё "
+        "иллюстрируется ничем")
+
+    фактически = {}
+    for p in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        text = p.read_text(encoding="utf-8")
+        fm = text.split("---", 2)[1]
+        имя = re.search(r"^name:\s*(.+)$", fm, re.M).group(1).strip()
+        описание = re.search(r"^description:\s*(.+)$", fm, re.M).group(1).strip()
+        фактически[имя] = len(описание)
+
+    assert заявлено == фактически, (
+        "числа бюджета в architecture.md разошлись с skills/: заявлено %s, "
+        "фактически %s" % (заявлено, фактически))
