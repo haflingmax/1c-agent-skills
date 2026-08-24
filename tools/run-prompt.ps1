@@ -13,7 +13,26 @@ switch ($Env) {
     # тот же класс сигнала, что stream-json у Claude — проверено запуском
     # 2026-08-23, событие {"type":"tool_use",...,"part":{"tool":"skill",
     # "state":{"input":{"name":"developing-1c-configurations"}}}}.
-    $exe = "$env:USERPROFILE\.vscode\extensions\kilocode.kilo-code-7.4.22\bin\kilo.exe"
+    # Путь был зашит вместе с версией расширения (7.4.22) — и сломался молча,
+    # когда обновление Kilo оборвалось: каталог расширения остался, а bin\kilo.exe
+    # из него исчез (уцелел только внутри .incomplete-пакета установщика).
+    # Прогоны при этом записывались как выполненные с «навык не сработал» —
+    # неотличимо от честного отказа навыка выбраться. Проверено запуском
+    # 24.08.2026: шесть прогонов приёмки дали пустые каталоги и вердикт False.
+    #
+    # Поэтому версия больше не зашита, а отсутствие исполняемого файла —
+    # громкий отказ, а не тихий ноль. Чужой инструмент мы не судим (правило 11),
+    # но и невыполненное за его прогон не выдаём.
+    $exe = Get-ChildItem "$env:USERPROFILE\.vscode\extensions" -Filter 'kilocode.kilo-code-*' -Directory -ErrorAction SilentlyContinue |
+      Sort-Object Name -Descending |
+      ForEach-Object { Join-Path $_.FullName 'bin\kilo.exe' } |
+      Where-Object { Test-Path $_ } |
+      Select-Object -First 1
+    if (-not $exe) {
+      throw ("среда kilo недоступна: ни в одном каталоге " +
+             "$env:USERPROFILE\.vscode\extensions\kilocode.kilo-code-* нет bin\kilo.exe. " +
+             "Прогон не выполнялся — это не отказ навыка, а отсутствие среды.")
+    }
     & $exe run --auto --dir $Dir --format json $Prompt *> $log
   }
   'claude' {
