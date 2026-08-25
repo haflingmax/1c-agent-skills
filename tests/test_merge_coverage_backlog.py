@@ -216,7 +216,7 @@ def test_refuses_without_outputs(tmp_path):
     r = subprocess.run([sys.executable, str(SCRIPT), str(tmp_path), "--ref", str(tmp_path),
                         "--out-json", str(tmp_path / "o.json"),
                         "--out-md", str(tmp_path / "o.md")],
-                       capture_output=True, text=True, encoding="utf-8")
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 2, r.stdout + r.stderr
     assert "out-*.json" in (r.stdout + r.stderr)
     assert not (tmp_path / "o.json").exists()

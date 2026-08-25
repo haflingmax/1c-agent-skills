@@ -89,7 +89,7 @@ def test_refuses_without_ref_directory(tmp_path):
     реестр — худший из исходов.
     """
     r = subprocess.run([sys.executable, str(SCRIPT), "--ref", str(tmp_path / "нет")],
-                       capture_output=True, text=True, encoding="utf-8")
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 2, r.stdout + r.stderr
     assert "_ref" in (r.stdout + r.stderr)
 
