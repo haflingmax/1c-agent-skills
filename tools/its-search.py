@@ -25,6 +25,20 @@ import re
 import sys
 from pathlib import Path
 
+# Потоки вывода переводятся в UTF-8 до первой печати. На Windows stdout
+# по умолчанию берёт кодировку консоли (cp866 в cmd.exe, cp1251 здесь),
+# и любой символ вне неё роняет вывод трассировкой вместо ответа: проверено
+# 25.08.2026 — на cp866 падает даже `--help` (длинное тире шапки), а каждая
+# выдержка непечатна из-за обрамляющего «…»; на cp1251 выдержку убивает
+# стрелка «→» из корпуса ИТС. try/except нужен потому, что под pytest потоки
+# подменены и reconfigure там может отсутствовать или бросить ValueError,
+# а ронять инструмент из-за кодировки вывода нельзя.
+for _поток in (sys.stdout, sys.stderr):
+    try:
+        _поток.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 ITS = ROOT / "_its"
 

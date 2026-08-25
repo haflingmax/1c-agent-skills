@@ -16,6 +16,24 @@ import re
 import sys
 from pathlib import Path
 
+# Печать отчёта идёт в консоль, а Windows отдаёт её скрипту не в UTF-8, а в
+# кодировке консоли (cp1251/cp866). Тогда первый же символ вне этой кодировки
+# роняет проверяльщик UnicodeEncodeError вместо вывода находок: и «…» из
+# собственного шаблона строки «без источника», и «→», «—», «≥» из процитированного
+# абзаца навыка. Проверено запуском 25.08.2026: `env -u PYTHONIOENCODING python
+# tools/check-sources.py` при единственной подсунутой находке падал трассировкой
+# с кодом 1, а без находок печатал кириллицу мусором. Ветвления по sys.platform
+# здесь намеренно нет: на Linux и macOS потоки и так UTF-8, а лишняя ветка — это
+# ещё один путь исполнения, который никто не проверяет. try/except нужен потому,
+# что под pytest потоки подменены: у подмены может не быть reconfigure
+# (AttributeError) либо она откажется перенастраивать уже начатый поток
+# (ValueError) — ронять проверяльщик из-за косметики вывода нельзя.
+for _поток in (sys.stdout, sys.stderr):
+    try:
+        _поток.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 SECTION = re.compile(r"^##+\s*Что здесь необратимо\s*$", re.M)
 NEXT_SECTION = re.compile(r"^##+\s", re.M)

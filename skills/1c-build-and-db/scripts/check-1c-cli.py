@@ -49,6 +49,20 @@ import re
 import sys
 from pathlib import Path
 
+# Весь вывод скрипта — кириллица, кавычки «» и стрелки → в шапке, а на Windows
+# stdout процесса Python по умолчанию в кодировке консоли (здесь cp1251).
+# Проверено запуском 25.08.2026: без этого `--help` не печатал справку вовсе, а
+# падал с UnicodeEncodeError на → в позиции 803, и отчёт о команде выходил
+# нечитаемым. Ветвления по sys.platform нет намеренно: на Linux и macOS потоки
+# и так UTF-8, а лишний путь исполнения никто не проверяет. try/except нужен
+# потому, что под pytest потоки подменены и reconfigure там может отсутствовать
+# или бросить ValueError, — ронять проверяльщик из-за кодировки вывода нельзя.
+for _поток in (sys.stdout, sys.stderr):
+    try:
+        _поток.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 CATALOG = Path(__file__).resolve().parent / "cli-keys.json"
 
 # Режим задаётся вторым словом команды. «общий» подходит любому режиму.

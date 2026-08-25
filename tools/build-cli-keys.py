@@ -43,12 +43,30 @@
 пишет в skills/, обязан заканчиваться прогоном tools/check-manifests.py и
 падать при ненулевом коде. Причина у C-1 была не в одном скрипте, а в том,
 что записанное в skills/ никто не перечитывал.
+
+Печать переводится в UTF-8 сразу после импортов: на Windows stdout процесса
+отдан кодировке консоли (cp1251), и первая же кириллическая строка чужого
+вывода роняет print с UnicodeEncodeError — проверено 25.08.2026 (Python 3.14)
+прогоном `env -u PYTHONIOENCODING python tools/build-cli-keys.py`: каталог был
+записан, а отчёт о сверке потерян и код возврата 1 вместо 0.
 """
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+# Кодировка печати — UTF-8, независимо от кодировки консоли (см. шапку).
+# Без ветвления по sys.platform: на Linux и macOS потоки и так UTF-8, а лишняя
+# ветка — лишний путь исполнения, который никто не прогоняет. try/except
+# обязателен: под pytest потоки подменены, у подмены может не быть reconfigure
+# или он бросит ValueError — ронять сборку каталога из-за косметики печати
+# нельзя.
+for _поток in (sys.stdout, sys.stderr):
+    try:
+        _поток.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "_its" / "cmdline" / "its-pril7-full.json"
