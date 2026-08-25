@@ -12,31 +12,33 @@ https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
     python tools/check-skills.py --verbose  # показать и то, что прошло
 """
 import re
+import os
 import sys
 from pathlib import Path
 
-# Потоки вывода переводятся в UTF-8 до первой печати. Отчёт весь на русском, а
-# на Windows stdout берёт кодировку консоли (cp1251 здесь, cp866 в cmd.exe), а
-# не UTF-8 — и печать падает UnicodeEncodeError на первом же символе вне этой
-# кодировки, обрывая отчёт ровно там, где он начал сообщать находки. Проверено
-# запуском 25.08.2026, Python 3.14, консоль cp1251: на навыке с цепочкой ссылок
-# SKILL.md -> a.md -> b.md команда `env -u PYTHONIOENCODING python
-# tools/check-skills.py` печатала имя навыка и падала трассировкой с кодом 1 на
-# стрелке из сообщения «цепочка ссылок глубже одного уровня», а на чистом
-# наборе без находок печатала кириллицу мусором. В cp866 не кодируются ещё и
-# «—», «–», ««», «»» — там непечатно почти любое сообщение о нарушении или
-# предупреждении, включая «compatibility длиной N знаков — нужно 1–500».
-# Ветвления по sys.platform здесь намеренно нет: на Linux и macOS потоки и так
-# UTF-8, а лишняя ветка — ещё один путь исполнения, который никто не проверяет.
-# try/except нужен потому, что под pytest потоки подменены: у подмены может не
-# быть reconfigure (AttributeError) либо она откажется перенастраивать уже
-# начатый поток (ValueError), а ронять проверяльщик из-за косметики вывода
-# нельзя.
-for _поток in (sys.stdout, sys.stderr):
-    try:
-        _поток.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+# Вывод этих скриптов — кириллица и знаки «», «—», «→». Пока stdout остаётся
+# окном консоли, беды нет: Python 3.14 на Windows пишет туда через WriteConsoleW
+# и отдаёт utf-8 при любой кодовой странице — проверено запуском 25.08.2026 под
+# chcp 866, 1251 и 65001, во всех трёх sys.stdout.encoding == 'utf-8'.
+#
+# Ломается ПЕРЕНАПРАВЛЕНИЕ: когда вывод уходит в файл или в трубу, Python берёт
+# ANSI-кодировку системы (здесь cp1251), и первый же знак вне неё роняет скрипт
+# трассировкой вместо отчёта. Так падал check-1c-cli.py, отгружаемый внутри
+# навыка, и так its-search.py не мог отдать даже --help.
+#
+# Две оговорки, каждая из-за собственной ошибки первой редакции:
+#   errors= передаём прежний — reconfigure(encoding=...) молча ставит strict,
+#   а интерпретатор держит на stdout surrogateescape и на stderr
+#   backslashreplace нарочно, чтобы печать имени файла с одиночным суррогатом
+#   (обычное дело в Windows) не роняла сам вывод;
+#   при заданной PYTHONIOENCODING не трогаем ничего — иначе у человека
+#   не остаётся способа задать кодировку под своего потребителя вывода.
+if not os.environ.get("PYTHONIOENCODING"):
+    for _поток in (sys.stdout, sys.stderr):
+        try:
+            _поток.reconfigure(encoding="utf-8", errors=_поток.errors)
+        except (AttributeError, ValueError):
+            pass
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"

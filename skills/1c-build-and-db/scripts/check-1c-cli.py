@@ -46,22 +46,33 @@
 """
 import json
 import re
+import os
 import sys
 from pathlib import Path
 
-# Весь вывод скрипта — кириллица, кавычки «» и стрелки → в шапке, а на Windows
-# stdout процесса Python по умолчанию в кодировке консоли (здесь cp1251).
-# Проверено запуском 25.08.2026: без этого `--help` не печатал справку вовсе, а
-# падал с UnicodeEncodeError на → в позиции 803, и отчёт о команде выходил
-# нечитаемым. Ветвления по sys.platform нет намеренно: на Linux и macOS потоки
-# и так UTF-8, а лишний путь исполнения никто не проверяет. try/except нужен
-# потому, что под pytest потоки подменены и reconfigure там может отсутствовать
-# или бросить ValueError, — ронять проверяльщик из-за кодировки вывода нельзя.
-for _поток in (sys.stdout, sys.stderr):
-    try:
-        _поток.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+# Вывод этих скриптов — кириллица и знаки «», «—», «→». Пока stdout остаётся
+# окном консоли, беды нет: Python 3.14 на Windows пишет туда через WriteConsoleW
+# и отдаёт utf-8 при любой кодовой странице — проверено запуском 25.08.2026 под
+# chcp 866, 1251 и 65001, во всех трёх sys.stdout.encoding == 'utf-8'.
+#
+# Ломается ПЕРЕНАПРАВЛЕНИЕ: когда вывод уходит в файл или в трубу, Python берёт
+# ANSI-кодировку системы (здесь cp1251), и первый же знак вне неё роняет скрипт
+# трассировкой вместо отчёта. Так падал check-1c-cli.py, отгружаемый внутри
+# навыка, и так its-search.py не мог отдать даже --help.
+#
+# Две оговорки, каждая из-за собственной ошибки первой редакции:
+#   errors= передаём прежний — reconfigure(encoding=...) молча ставит strict,
+#   а интерпретатор держит на stdout surrogateescape и на stderr
+#   backslashreplace нарочно, чтобы печать имени файла с одиночным суррогатом
+#   (обычное дело в Windows) не роняла сам вывод;
+#   при заданной PYTHONIOENCODING не трогаем ничего — иначе у человека
+#   не остаётся способа задать кодировку под своего потребителя вывода.
+if not os.environ.get("PYTHONIOENCODING"):
+    for _поток in (sys.stdout, sys.stderr):
+        try:
+            _поток.reconfigure(encoding="utf-8", errors=_поток.errors)
+        except (AttributeError, ValueError):
+            pass
 
 CATALOG = Path(__file__).resolve().parent / "cli-keys.json"
 

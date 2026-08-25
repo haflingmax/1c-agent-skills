@@ -24,29 +24,35 @@ config path.») — сам справочник признаёт расхожд�
 """
 import json
 import re
+import os
 import sys
 from pathlib import Path
 
 import yaml
 
-# Потоки принудительно в UTF-8, до первой печати. На Windows stdout по
-# умолчанию в кодировке консоли: проверено 25.08.2026 запуском
-# `env -u PYTHONIOENCODING python tools/check-manifests.py` — sys.stdout.encoding
-# = cp1251, отчёт уезжает в CI-лог байтами cp1251 и читается как кракозябры.
-# Само падение здесь пока не воспроизводится (тире и «ёлочки» сидят только в
-# докстроках и не печатаются), но печатаются относительные пути и первая
-# строка str(exc) от yaml, а правщику достаточно скопировать тире из шапки в
-# текст сообщения — и на cp866 будет UnicodeEncodeError вместо отчёта, как у
-# skills/1c-build-and-db/scripts/check-1c-cli.py. Ветвления по платформе нет
-# намеренно: на Linux и macOS вызов ничего не меняет, а лишняя ветка — лишний
-# путь исполнения, который никто не проверяет. try/except обязателен: под
-# pytest потоки подменены, reconfigure может отсутствовать или бросить
-# ValueError, а ронять проверяльщик из-за косметики нельзя.
-for _поток in (sys.stdout, sys.stderr):
-    try:
-        _поток.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+# Вывод этих скриптов — кириллица и знаки «», «—», «→». Пока stdout остаётся
+# окном консоли, беды нет: Python 3.14 на Windows пишет туда через WriteConsoleW
+# и отдаёт utf-8 при любой кодовой странице — проверено запуском 25.08.2026 под
+# chcp 866, 1251 и 65001, во всех трёх sys.stdout.encoding == 'utf-8'.
+#
+# Ломается ПЕРЕНАПРАВЛЕНИЕ: когда вывод уходит в файл или в трубу, Python берёт
+# ANSI-кодировку системы (здесь cp1251), и первый же знак вне неё роняет скрипт
+# трассировкой вместо отчёта. Так падал check-1c-cli.py, отгружаемый внутри
+# навыка, и так its-search.py не мог отдать даже --help.
+#
+# Две оговорки, каждая из-за собственной ошибки первой редакции:
+#   errors= передаём прежний — reconfigure(encoding=...) молча ставит strict,
+#   а интерпретатор держит на stdout surrogateescape и на stderr
+#   backslashreplace нарочно, чтобы печать имени файла с одиночным суррогатом
+#   (обычное дело в Windows) не роняла сам вывод;
+#   при заданной PYTHONIOENCODING не трогаем ничего — иначе у человека
+#   не остаётся способа задать кодировку под своего потребителя вывода.
+if not os.environ.get("PYTHONIOENCODING"):
+    for _поток in (sys.stdout, sys.stderr):
+        try:
+            _поток.reconfigure(encoding="utf-8", errors=_поток.errors)
+        except (AttributeError, ValueError):
+            pass
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"

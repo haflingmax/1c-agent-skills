@@ -98,6 +98,15 @@ param(
   [switch]$ApplyDescriptionOnly,
   [switch]$DryRun
 )
+
+# Обёртка читает вывод сторонних программ: скриптов набора на Python
+# и агентских CLI. PowerShell 5.1 декодирует stdout нативной программы
+# по [Console]::OutputEncoding, а он по умолчанию равен кодовой странице
+# консоли (cp866 на русской Windows). Скрипты набора с 25.08.2026 печатают
+# UTF-8 всегда, поэтому без этой строки кириллица приходит кракозябрами —
+# и не просто на экран: run-acceptance кладёт этот текст в progress.jsonl
+# и в сообщение throw, то есть мусор замерзает в свидетельстве приёмки.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $CheckManifests = Join-Path $RepoRoot 'tools\check-manifests.py'
