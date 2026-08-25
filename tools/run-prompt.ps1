@@ -7,6 +7,64 @@ param(
 if (-not $Dir) { $Dir = Join-Path $env:TEMP ("1c-run\" + [guid]::NewGuid().ToString('N').Substring(0,8)) }
 New-Item -ItemType Directory -Force $Dir | Out-Null
 $log = Join-Path $Dir 'run.log'
+
+# У Kilo вызов навыка проходит через разрешения kilo.jsonc. Если в блоке
+# "skill" стоит "*": "ask", то навык, не разрешённый поимённо, в режиме
+# --auto до вызова не доходит — и прогон выглядит как «навык не выбрался».
+#
+# Проверено 25.08.2026 тремя прогонами на одной и той же задаче
+# (ТекущаяДата в общем модуле): в Kilo 1c-code-conventions не поднялся
+# ни на «проверь», ни на «напиши», при том что навык лежал в каталоге;
+# контрольный прогон на developing-1c-configurations (разрешён поимённо)
+# навык поднял — 12 упоминаний в журнале; тот же запрос в среде claude,
+# где такого списка нет, поднял ровно 1c-code-conventions.
+#
+# То есть прибор мерил список разрешений, а показывал отказ набора.
+# Это четвёртый дефект того же рода, и он молчаливый: под него попали
+# все прогоны Kilo по 1c-queries, 1c-security и 1c-managed-forms —
+# ни один из них не был разрешён поимённо.
+#
+# Чужой инструмент мы не судим (правило 11): если настройку не удалось
+# прочитать, это предупреждение, а не отказ. Отказ — только когда точно
+# видно, что навык не разрешён.
+if ($Env -eq 'kilo') {
+  $cfg = Join-Path $env:USERPROFILE '.config\kilo\kilo.jsonc'
+  $skillsRoot = Join-Path $env:USERPROFILE '.config\kilo\skills'
+  $ours = Get-ChildItem (Join-Path $PSScriptRoot '..\skills') -Directory | ForEach-Object { $_.Name }
+
+  $missing = @($ours | Where-Object { -not (Test-Path (Join-Path $skillsRoot $_)) })
+  if ($missing) {
+    throw ("в рабочем месте Kilo нет навыков: " + ($missing -join ', ') + ". " +
+           "Прогон измерил бы отсутствие файлов, а не выбор набора. " +
+           "Поставить их: tools\install-skills.ps1")
+  }
+
+  if (Test-Path $cfg) {
+    $text = Get-Content $cfg -Raw
+    $m = [regex]::Match($text, '"skill"\s*:\s*\{(?<body>[^}]*)\}')
+    if ($m.Success) {
+      $body = $m.Groups['body'].Value
+      $starAsk = [regex]::IsMatch($body, '"\*"\s*:\s*"(ask|deny)"')
+      if ($starAsk) {
+        $denied = @($ours | Where-Object {
+          -not [regex]::IsMatch($body, ('"' + [regex]::Escape($_) + '"\s*:\s*"allow"'))
+        })
+        if ($denied) {
+          throw ("в kilo.jsonc блок ""skill"" стоит на ""*"": ""ask"", " +
+                 "а поимённо не разрешены: " + ($denied -join ', ') + ". " +
+                 "В режиме --auto такой навык до вызова не доходит, и прогон " +
+                 "покажет «навык не сработал» вместо честного отказа маршрута. " +
+                 "Разрешить их в " + $cfg + " прежде, чем толковать результат.")
+        }
+      }
+    } else {
+      Write-Warning "не удалось разобрать блок ""skill"" в $cfg — разрешения не проверены"
+    }
+  } else {
+    Write-Warning "настройка $cfg не найдена — разрешения не проверены"
+  }
+}
+
 switch ($Env) {
   'kilo' {
     # М-17/М-18: --format json даёт структурный журнал (raw JSON events),
