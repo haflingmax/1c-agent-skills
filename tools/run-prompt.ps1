@@ -3,7 +3,8 @@ param(
   [ValidateSet('kilo','claude','codex')][string]$Env = 'kilo',
   [Parameter(Mandatory)][string]$Prompt,
   [string]$Dir
-)
+)
+
 # Обёртка читает вывод сторонних программ: скриптов набора на Python
 # и агентских CLI. PowerShell 5.1 декодирует stdout нативной программы
 # по [Console]::OutputEncoding, а он по умолчанию равен кодовой странице
@@ -108,8 +109,26 @@ switch ($Env) {
     # давать этому процессу не меньше 900 секунд — claude -p с навыком внутри бегает
     # дольше, чем короткий запрос без инструментов, и обрывать его по короткому
     # таймауту значит мерить оборванные прогоны, а не реальные.
+    # --add-dir на каталог навыков обязателен. Прогон идёт из свежего временного
+    # каталога, а навыки лежат в $env:USERPROFILE\.claude\skills — то есть вне
+    # рабочего каталога. Без этой строки claude отказывает навыку в чтении его
+    # собственных файлов references с decision_reason_type = "workingDir", и
+    # прогон молча меряет половину навыка: тело прочитано, справочники — нет.
+    #
+    # Обнаружено 26.08.2026 на маршрутном прогоне 1c-access-rights: агент
+    # получил permission_denied на references/role-rights-setup.md, честно
+    # об этом сказал и ответил по телу. Прибор при этом отрапортовал успех —
+    # навык-то поднялся. Это тот же класс дефекта, что и список разрешений
+    # Kilo выше: прибор мерил настройку среды, а показывал поведение набора.
+    $skills = Join-Path $env:USERPROFILE '.claude\skills'
     Push-Location $Dir
-    try { claude -p $Prompt --output-format stream-json --verbose *> $log } finally { Pop-Location }
+    try {
+      if (Test-Path $skills) {
+        claude -p $Prompt --add-dir $skills --output-format stream-json --verbose *> $log
+      } else {
+        claude -p $Prompt --output-format stream-json --verbose *> $log
+      }
+    } finally { Pop-Location }
   }
   'codex' {
     Push-Location $Dir
