@@ -40,6 +40,7 @@ needs_its = pytest.mark.skipif(not есть_выгрузка, reason="_its/ по
 def прогон(*args, cwd=None):
     return subprocess.run([sys.executable, str(SCRIPT), *args],
                           capture_output=True, text=True, encoding="utf-8",
+                          errors="replace",
                           cwd=str(cwd or ROOT))
 
 

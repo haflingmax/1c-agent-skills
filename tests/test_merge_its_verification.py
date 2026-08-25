@@ -241,7 +241,7 @@ def test_refuses_without_outputs(tmp_path):
     (tmp_path / "1c-queries.json").write_text(
         json.dumps({"темы": [{"тема": "x"}]}, ensure_ascii=False), encoding="utf-8")
     r = subprocess.run([sys.executable, str(SCRIPT), str(tmp_path)],
-                       capture_output=True, text=True, encoding="utf-8")
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 2
     assert "out-*.json" in (r.stdout + r.stderr)
 

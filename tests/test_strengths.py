@@ -463,3 +463,47 @@ def test_section_skills_point_at_the_core():
                         % p.parent.name)
 
     assert not беда, "правило 12 нарушено: " + "; ".join(беда)
+
+
+# --- прибор не должен зависеть от переменной окружения ----------------------
+
+def test_subprocess_calls_survive_ansi_output():
+    """Набор был зелёным только потому, что PYTHONIOENCODING=utf-8 приходил
+    из окружения.
+
+    Дочерний Python кодирует stderr в ANSI-кодировке консоли. Родитель читает
+    его как utf-8 и получает UnicodeDecodeError; subprocess отдаёт stdout/stderr
+    как None, а следующая строка теста складывает None со строкой и падает
+    с TypeError — вместо того, чтобы проверить то, что собиралась.
+
+    Проверено 25.08.2026: `env -u PYTHONIOENCODING pytest` давал 10 падений
+    в семи файлах, из которых пять мест уже чинили поштучно раньше. Поэтому
+    правило, а не очередная точечная правка: любой захват текстового вывода
+    подпроцесса обязан нести errors=, иначе декодирование может вернуть None.
+    """
+    import re as _re
+
+    вызовы = []
+    for p in sorted((ROOT / "tests").glob("*.py")):
+        text = p.read_text(encoding="utf-8")
+        for m in _re.finditer(r"subprocess\.(run|check_output|Popen)\s*\(", text):
+            # тело вызова — до строки, где скобки сходятся
+            i, глубина = m.end() - 1, 0
+            while i < len(text):
+                if text[i] == "(":
+                    глубина += 1
+                elif text[i] == ")":
+                    глубина -= 1
+                    if глубина == 0:
+                        break
+                i += 1
+            тело = text[m.end():i]
+            если_текст = "text=True" in тело or "universal_newlines=True" in тело
+            if если_текст and "errors=" not in тело:
+                строка = text[:m.start()].count("\n") + 1
+                вызовы.append("%s:%d" % (p.name, строка))
+
+    assert not вызовы, (
+        "захват текстового вывода подпроцесса без errors= — при кириллице "
+        "в выводе дочернего процесса декодирование вернёт None и тест упадёт "
+        "с TypeError вместо своей проверки: " + ", ".join(вызовы))

@@ -167,9 +167,9 @@ def test_duplicate_unit_is_reported():
 
 def test_refuses_without_outputs(tmp_path):
     (tmp_path / "1c-queries.json").write_text(
-        json.dumps({"единицы": [{"что": "x"}]}, ensure_ascii=False), encoding="utf-8")
+        json.dumps({"единицы": [{"что": "x"}]}, ensure_ascii=False), encoding="utf-8", errors="replace")
     r = subprocess.run([sys.executable, str(SCRIPT), str(tmp_path)],
-                       capture_output=True, text=True, encoding="utf-8")
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 2
     assert "out-*.json" in (r.stdout + r.stderr)
 
@@ -177,9 +177,9 @@ def test_refuses_without_outputs(tmp_path):
 def test_unanalysed_section_is_reported(tmp_path):
     for имя in ("1c-queries", "1c-security"):
         (tmp_path / (имя + ".json")).write_text(
-            json.dumps({"единицы": [{"что": "x"}]}, ensure_ascii=False), encoding="utf-8")
+            json.dumps({"единицы": [{"что": "x"}]}, ensure_ascii=False), encoding="utf-8", errors="replace")
     (tmp_path / "out-1c-queries.json").write_text(
         json.dumps(файл(раздел="1c-queries",
-                        единицы=[единица(что="x")]), ensure_ascii=False), encoding="utf-8")
+                        единицы=[единица(что="x")]), ensure_ascii=False), encoding="utf-8", errors="replace")
     _, problems = mod.merge(tmp_path)
     assert any("1c-security не разобран" in p for p in problems), problems
