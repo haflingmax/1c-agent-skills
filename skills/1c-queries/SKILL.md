@@ -119,7 +119,9 @@ description: Запросы, транзакции и блокировки в к�
 
 ## Приёмы, которые дают больше всего
 
-Подробности с номерами — в [references/query-rules.md](references/query-rules.md).
+Подробности с номерами — в [references/query-rules.md](references/query-rules.md);
+у запроса динамического списка требования выше обычных —
+[references/dynamic-lists.md](references/dynamic-lists.md).
 
 **Условие виртуальной таблицы передаётся её параметром, а не в `ГДЕ`** —
 стандарт 657, и он осторожен вдвойне: «не рекомендуется», и «**возможно, что**»
