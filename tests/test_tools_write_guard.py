@@ -43,6 +43,9 @@ READS_ONLY = {
     "install-skills.ps1": "копирует ИЗ skills/ в каталоги сред",
     "run-acceptance.ps1": "копирует ИЗ skills/ и гоняет агентов",
     "run-prompt.ps1": "гоняет один промпт, файлов набора не трогает",
+    "allow-skills-in-kilo.py":
+        "читает имена из skills/, пишет в kilo.jsonc владельца — в skills/ "
+        "не пишет ни байта",
     "prove-blocking-rules.ps1": "гоняет 1cv8 во временном каталоге",
     "build-reference-registry.py": "читает _ref/, пишет опись в docs/, skills/ не трогает",
     "merge-reference-reading.py": "сводит выводы читателей в docs/, skills/ не трогает",
