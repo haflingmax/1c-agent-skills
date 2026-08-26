@@ -411,3 +411,36 @@ def test_запись_списка_читается_и_в_две_строки(cq
     разрешено = cq.разрешённые()
     assert len(разрешено) == 2, разрешено
     assert "вторая запись, перенесенная на вторую строку" in разрешено
+
+
+@pytest.mark.skipif(not os.path.isfile(КОРПУС), reason="корпус ИТС не выгружен")
+def test_названный_файл_проверяется_вне_навыков(tmp_path):
+    """Цитата рождается не в навыке, а в выписке и в замысле раздела —
+    и переезжает в навык уже правленой. До появления ключа `--файл` ни один
+    документ вне `skills/` не сверялся ничем; первый же прогон по двум
+    отчётам нашёл выдуманную формулировку в замысле раздела.
+    """
+    черновик = tmp_path / "выписка.md"
+    черновик.write_text(
+        "## Замысел раздела\n\n"
+        "«Выдуманная целиком цитата, которой нет ни в одном корпусе ИТС, "
+        "и длина её заведомо больше сорока знаков».\n",
+        encoding="utf-8")
+
+    из = subprocess.run(
+        [sys.executable, СКРИПТ, "--файл", str(черновик)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert из.returncode == 1, из.stdout
+    assert "выписка.md" in из.stdout
+
+
+def test_ключ_файл_молчит_на_не_markdown(tmp_path):
+    """Ключ принимает список путей, и в него легко попадёт лишнее."""
+    чужой = tmp_path / "данные.json"
+    чужой.write_text("{}", encoding="utf-8")
+
+    из = subprocess.run(
+        [sys.executable, СКРИПТ, "--файл", str(чужой)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert из.returncode == 0, из.stdout
+    assert "не markdown" in из.stdout

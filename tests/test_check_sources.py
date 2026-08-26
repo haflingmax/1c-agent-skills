@@ -149,3 +149,61 @@ def test_no_dangling_section_refs_in_current_skills():
     real_skill_files = sorted((ROOT / "skills").rglob("*.md"))
     bad = mod.find_dangling_refs(real_skill_files)
     assert not bad, "в наборе навыков не должно быть висячих ссылок: %r" % (bad,)
+
+
+# ---------- формы адреса, добавленные 26.08.2026 ----------
+
+def test_paragraph_sign_counts_as_source(tmp_path):
+    """«§5.5.23» — самая частая форма адреса в наборе, и проверка её не знала.
+
+    Из-за этого четыре абзаца в трёх навыках считались бессточными при
+    стоящем в них адресе, и код возврата был красным без причины.
+    """
+    f = tmp_path / "SKILL.md"
+    f.write_text("## Что здесь необратимо\n\nСмена кода языка теряет тексты "
+                 "(§5.5.23), и восстановить их можно только прежним кодом.\n",
+                 encoding="utf-8")
+    assert not mod.check_file(f)
+
+
+def test_standard_number_counts_as_source(tmp_path):
+    f = tmp_path / "SKILL.md"
+    f.write_text("## Что здесь необратимо\n\nПереименование реквизита ломает "
+                 "пользовательские макеты (`std789`, пп. 1.1-1.2).\n",
+                 encoding="utf-8")
+    assert not mod.check_file(f)
+
+
+def test_address_without_number_is_not_a_source(tmp_path):
+    """Знак параграфа без номера ничего не даёт прочитать — это не адрес."""
+    f = tmp_path / "SKILL.md"
+    f.write_text("## Что здесь необратимо\n\nОб этом сказано в § руководства, "
+                 "и последствия там же описаны подробно.\n", encoding="utf-8")
+    assert mod.check_file(f)
+
+
+def test_own_conclusion_is_traceable_but_only_by_full_formula(tmp_path):
+    """Абзац, называющий себя выводом набора, делает ровно то, ради чего
+    правило и существует: не даёт принять рассуждение набора за цитату.
+    Формула требуется целиком — иначе она станет отговоркой."""
+    честный = tmp_path / "SKILL.md"
+    честный.write_text(
+        "## Что здесь необратимо\n\n**Вывод набора, а не источника: признак "
+        "ядра здесь заменяется на недиагностируемость.** Не нечем починить, "
+        "а нечем узнать, что чинить.\n", encoding="utf-8")
+    assert not mod.check_file(честный)
+
+    отговорка = tmp_path / "ДРУГОЙ.md"
+    отговорка.write_text(
+        "## Что здесь необратимо\n\nЭто вывод, и он представляется верным: "
+        "починить механизм после такой правки уже не выйдет никогда.\n",
+        encoding="utf-8")
+    assert mod.check_file(отговорка)
+
+
+def test_current_skills_have_no_sourceless_claims():
+    """Регресс: набор обязан проходить проверку целиком."""
+    плохо = []
+    for md in sorted((ROOT / "skills").rglob("*.md")):
+        плохо += [(md.name, а) for а in mod.check_file(md)]
+    assert not плохо, "утверждения без источника: %r" % (плохо,)
