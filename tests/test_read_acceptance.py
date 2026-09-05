@@ -6,6 +6,7 @@
 редакция образца не ловила форму «стандарт 1С № 686».
 """
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -51,6 +52,61 @@ def test_у_сорвавшегося_прогона_ссылок_ноль_а_н�
 
 def test_адрес_параграфа_узнаётся_с_пробелом_и_без():
     assert мод.ссылки("см. §5.14.2.4 и § 30.4") == 2
+
+
+def _журнал(tmp_path, строки):
+    """Пишет журнал в UTF-16 с BOM — так их пишут обе среды."""
+    п = tmp_path / "run.log"
+    п.write_text("\n".join(json.dumps(с, ensure_ascii=False) for с in строки),
+                 encoding="utf-16")
+    return п
+
+
+def test_оба_формата_журнала_читаются(tmp_path):
+    """Форматы сред разные, и знание одного молча даёт ноль на другом.
+
+    Прибор, знавший только Kilo, на журналах Claude Code возвращал пустоту,
+    и сводка печатала «ссылок на источник: 0» по двадцати прогонам,
+    где раздел поднялся. Это читалось как находка о среде, а было
+    свойством прибора: вход до него не дошёл.
+    """
+    (tmp_path / "k").mkdir()
+    (tmp_path / "c").mkdir()
+    kilo = _журнал(tmp_path / "k", [
+        {"type": "step_start", "part": {"type": "step-start"}},
+        {"type": "message", "part": {"type": "text", "text": "Ответ Kilo, std686."}},
+    ])
+    claude = _журнал(tmp_path / "c", [
+        {"type": "system", "subtype": "init"},
+        {"type": "user", "message": "строка, а не словарь"},
+        {"type": "assistant", "message": {"content": [
+            {"type": "thinking", "thinking": "..."},
+            {"type": "tool_use", "name": "Skill", "input": {"skill": "1c-security"}},
+        ]}},
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "Ответ Claude, стандарт 1С № 686."},
+        ]}},
+    ])
+
+    assert "Kilo" in мод.ответ(kilo)
+    assert "Claude" in мод.ответ(claude), (
+        "формат Claude Code — текст внутри message.content, а не в part.text")
+    assert мод.ссылки(мод.ответ(claude)) == 1
+
+
+def test_строковое_сообщение_не_роняет_разбор(tmp_path):
+    """У части записей Claude Code `message` — строка, а не словарь.
+
+    Первая редакция разбора падала на них с AttributeError, то есть
+    прибор не «занижал», а не работал вовсе.
+    """
+    (tmp_path / "s").mkdir()
+    ж = _журнал(tmp_path / "s", [
+        {"type": "user", "message": "простая строка"},
+        {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "Итог."}]}},
+    ])
+    assert мод.ответ(ж) == "Итог."
 
 
 def test_в_исходнике_прибора_нет_управляющих_символов():
