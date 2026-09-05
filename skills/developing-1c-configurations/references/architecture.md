@@ -247,7 +247,7 @@ v8std, закрываемых разделом.
    | `developing-1c-configurations` | 304 |
    | `1c-build-and-db` | 384 |
    | `1c-queries` | 279 |
-   | `1c-security` | 331 |
+   | `1c-security` | 414 |
    | `1c-managed-forms` | 372 |
    | `1c-code-conventions` | 334 |
    | `1c-metadata-objects` | 454 |
