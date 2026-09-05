@@ -141,6 +141,24 @@ def ответ(путь):
                 if (isinstance(ч, dict) and ч.get("type") == "text"
                         and ч.get("text")):
                     куски.append(ч["text"])
+    if not куски:
+        # Codex пишет не JSON, а расшифровку разговора: строка-маркер
+        # `codex` открывает ответ, строка `tokens used` его закрывает.
+        # Прибор, знавший только JSON, на этих журналах молча возвращал
+        # пустоту — четвёртый за сессию случай «ноль находок, потому что
+        # вход не дошёл».
+        строки = текст.splitlines()
+        начала = [i for i, с in enumerate(строки) if с.strip() == "codex"]
+        if начала:
+            начало = начала[-1] + 1
+            конец = len(строки)
+            for i in range(начало, len(строки)):
+                if строки[i].strip().startswith("tokens used"):
+                    конец = i
+                    break
+            собрано = "\n".join(строки[начало:конец]).strip()
+            if собрано:
+                куски.append(собрано)
     if куски:
         return куски[-1]
     return (СБОЙ + " " + сбой) if сбой else None
