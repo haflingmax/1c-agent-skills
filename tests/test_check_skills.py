@@ -162,3 +162,55 @@ def test_plain_frontmatter_warns_about_nothing(tmp_path):
         "name: demo\ndescription: Демо-навык. Применяется, когда нужно демо.")
     bad, warn = mod.check(md)
     assert not any("Codex" in w for w in warn), warn
+
+
+# --- Справочник, до которого нельзя дойти ---------------------------------
+#
+# Ссылки вниз запрещены (цепочка глубже одного уровня — нарушение), поэтому
+# единственная дверь в справочник — тело навыка. Незапертой двери тут
+# не бывает: не названный телом файл агент не откроет никогда.
+#
+# Найдено 05.09.2026 на `1c-quality-gates`: `measuring-production.md`,
+# 129 строк о замере на работающей базе, не был назван ни телом, ни любым
+# другим файлом набора. Прибор смотрел только в сторону «ссылка → файл».
+
+
+def _скелет_со_справочниками(tmp_path, тело, имена):
+    md = _write_skill(tmp_path, "demo", "demo", "Что делает и когда звать.", тело)
+    (md.parent / "references").mkdir()
+    for имя in имена:
+        (md.parent / "references" / имя).write_text("# Справочник\n", encoding="utf-8")
+    return md
+
+
+def test_справочник_без_упоминания_в_теле_это_нарушение(tmp_path):
+    md = _скелет_со_справочниками(
+        tmp_path, "Разбор — [первый](references/a.md).", ["a.md", "b.md"])
+    bad, _warn = mod.check(md)
+    недостижимые = [б for б in bad if "недостижим" in б]
+    assert len(недостижимые) == 1 and "b.md" in недостижимые[0]
+
+
+def test_путь_в_обратных_кавычках_считается_упоминанием(tmp_path):
+    """Половина тел набора ведёт опись вида «- `references/имя.md` — о чём он».
+
+    Требование markdown-скобок объявило бы недостижимыми девять живых
+    справочников; прибор проверялся на этом и был ослаблен до правды.
+    """
+    md = _скелет_со_справочниками(
+        tmp_path, "- `references/a.md` — о чём он;\n", ["a.md"])
+    bad, _warn = mod.check(md)
+    assert not [б for б in bad if "недостижим" in б]
+
+
+def test_навык_без_каталога_справочников_проверку_проходит(tmp_path):
+    md = _write_skill(tmp_path, "demo", "demo", "Описание.", "Тело без ссылок.")
+    bad, _warn = mod.check(md)
+    assert not [б for б in bad if "недостижим" in б]
+
+
+def test_все_справочники_набора_достижимы():
+    """Приёмка на живом наборе: 107 справочников, недостижимых нет ни одного."""
+    for md in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        bad, _warn = mod.check(md)
+        assert not [б for б in bad if "недостижим" in б], md.parent.name
