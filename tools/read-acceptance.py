@@ -54,6 +54,9 @@ def события(каталог):
     return out
 
 
+СБОЙ = "[СРЕДА СОРВАЛАСЬ]"
+
+
 def ответ(путь):
     """Последний текстовый ответ агента из run.log.
 
@@ -69,7 +72,7 @@ def ответ(путь):
         текст = сырое.decode("utf-16")
     else:
         текст = сырое.decode("utf-8-sig", errors="replace")
-    куски = []
+    куски, сбой = [], None
     for строка in текст.splitlines():
         строка = строка.strip()
         if not строка.startswith("{"):
@@ -78,10 +81,22 @@ def ответ(путь):
             о = json.loads(строка)
         except ValueError:
             continue
+        # Среда падает молча для вызывающего: kilo.exe возвращает 0, скрипт
+        # прогона пишет run-done, и прогон выглядит состоявшимся при пустом
+        # ответе. Поймано 05.09.2026 на паре 15 Neg: 35 шагов, 37 вызовов
+        # инструментов и «Invalid prompt: The messages do not match the
+        # ModelMessage[] schema» в конце. Сорвавшийся прогон обязан быть
+        # виден как сорвавшийся, а не как ответ длиной ноль.
+        if о.get("type") == "error":
+            данные = (о.get("error") or {}).get("data") or {}
+            сбой = данные.get("message") or (о.get("error") or {}).get("name")
+            continue
         часть = о.get("part") or {}
         if часть.get("type") == "text" and часть.get("text"):
             куски.append(часть["text"])
-    return куски[-1] if куски else None
+    if куски:
+        return куски[-1]
+    return (СБОЙ + " " + сбой) if сбой else None
 
 
 def main():
@@ -108,6 +123,18 @@ def main():
             сорвалось += 1
             print(шапка + "  — %s %s" % (вид, о.get("reason", "")))
             continue
+        т = ответ(о.get("log", ""))
+        # Прогон, у которого среда упала, считается сорвавшимся, а не
+        # состоявшимся: иначе сводка врёт в сторону благополучия — ровно
+        # ту ошибку набор ловит у своих приборов третий раз.
+        упал = bool(т) and т.startswith(СБОЙ)
+        if упал:
+            сорвалось += 1
+            print(шапка + "  — среда сорвалась")
+            if not а.кратко:
+                print("    " + т[len(СБОЙ):].strip())
+                print()
+            continue
         прогонов += 1
         поднят = bool(о.get("skill"))
         if not поднят:
@@ -116,7 +143,6 @@ def main():
               % ("да" if поднят else "НЕТ", о.get("skills") or "—"))
         if а.кратко:
             continue
-        т = ответ(о.get("log", ""))
         print(т if т else "    (ответа в журнале нет)")
         print()
 
