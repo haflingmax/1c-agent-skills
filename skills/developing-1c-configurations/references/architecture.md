@@ -249,7 +249,7 @@ v8std, закрываемых разделом.
    | `1c-queries` | 279 |
    | `1c-security` | 414 |
    | `1c-managed-forms` | 372 |
-   | `1c-code-conventions` | 334 |
+   | `1c-code-conventions` | 415 |
    | `1c-metadata-objects` | 454 |
    | `1c-client-server` | 451 |
    | `1c-access-rights` | 433 |
