@@ -123,7 +123,8 @@ description: Запросы, транзакции и блокировки в к�
 [references/dynamic-lists.md](references/dynamic-lists.md).
 
 **Полнотекстовый поиск читает индекс, а не базу,** и умеет молча урезать
-результат — [references/full-text-search.md](references/full-text-search.md).
+результат и глобальный поиск —
+[references/full-text-search.md](references/full-text-search.md).
 
 **Условие виртуальной таблицы передаётся её параметром, а не в `ГДЕ`** —
 стандарт 657, и он осторожен вдвойне: «не рекомендуется», и «**возможно, что**»
