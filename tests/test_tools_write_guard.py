@@ -48,6 +48,9 @@ READS_ONLY = {
     "check-map-promises.py":
         "сверяет карту глав в architecture.md со следами адресов "
         "в разделах, только читает",
+    "check-chapter-paragraphs.py":
+        "перепись параграфов глав без адреса в наборе: читает выгрузку "
+        "руководства и skills/, пишет только в stdout",
     "install-skills.ps1": "копирует ИЗ skills/ в каталоги сред",
     "run-acceptance.ps1": "копирует ИЗ skills/ и гоняет агентов",
     "run-prompt.ps1": "гоняет один промпт, файлов набора не трогает",
