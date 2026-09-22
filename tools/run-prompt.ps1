@@ -14,6 +14,11 @@ param(
 # и в сообщение throw, то есть мусор замерзает в свидетельстве приёмки.
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Кавычки внутри промпта PowerShell 5.1 нативной программе не экранирует:
+# 'a "b c" d' доходит как 'a b'. Разбор и замер — tools/native-arg.ps1.
+. (Join-Path $PSScriptRoot 'native-arg.ps1')
+$PromptArg = ConvertTo-NativeArgument $Prompt
+
 if (-not $Dir) { $Dir = Join-Path $env:TEMP ("1c-run\" + [guid]::NewGuid().ToString('N').Substring(0,8)) }
 New-Item -ItemType Directory -Force $Dir | Out-Null
 $log = Join-Path $Dir 'run.log'
@@ -101,7 +106,7 @@ switch ($Env) {
              "$env:USERPROFILE\.vscode\extensions\kilocode.kilo-code-* нет bin\kilo.exe. " +
              "Прогон не выполнялся — это не отказ навыка, а отсутствие среды.")
     }
-    & $exe run --auto --dir $Dir --format json $Prompt *> $log
+    & $exe run --auto --dir $Dir --format json $PromptArg *> $log
   }
   'claude' {
     # stream-json + verbose: обычный текстовый вывод не показывает вызов инструментов,
@@ -124,15 +129,15 @@ switch ($Env) {
     Push-Location $Dir
     try {
       if (Test-Path $skills) {
-        claude -p $Prompt --add-dir $skills --output-format stream-json --verbose *> $log
+        claude -p $PromptArg --add-dir $skills --output-format stream-json --verbose *> $log
       } else {
-        claude -p $Prompt --output-format stream-json --verbose *> $log
+        claude -p $PromptArg --output-format stream-json --verbose *> $log
       }
     } finally { Pop-Location }
   }
   'codex' {
     Push-Location $Dir
-    try { codex exec --profile tpm --skip-git-repo-check $Prompt *> $log } finally { Pop-Location }
+    try { codex exec --profile tpm --skip-git-repo-check $PromptArg *> $log } finally { Pop-Location }
   }
 }
 $txt = if (Test-Path $log) { Get-Content $log -Raw -Encoding Unicode } else { '' }
