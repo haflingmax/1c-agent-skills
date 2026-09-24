@@ -5,21 +5,71 @@
     "mslearn": "SQL Server, view=sql-server-ver16"
   },
   "страницы": [
-    {"база": "pgdoc", "id": "pg-transaction-iso", "url": "https://www.postgresql.org/docs/17/transaction-iso.html",
-     "заголовок": "PostgreSQL 17: 13.2. Transaction Isolation"},
-    {"база": "pgdoc", "id": "pg-mvcc-intro", "url": "https://www.postgresql.org/docs/17/mvcc-intro.html",
-     "заголовок": "PostgreSQL 17: 13.1. Introduction (Concurrency Control)"},
-    {"база": "pgdoc", "id": "pg-explicit-locking", "url": "https://www.postgresql.org/docs/17/explicit-locking.html",
-     "заголовок": "PostgreSQL 17: 13.3. Explicit Locking"},
-    {"база": "pgdoc", "id": "pg-applevel-consistency", "url": "https://www.postgresql.org/docs/17/applevel-consistency.html",
-     "заголовок": "PostgreSQL 17: 13.4. Data Consistency Checks at the Application Level"},
-    {"база": "pgdoc", "id": "pg-mvcc-caveats", "url": "https://www.postgresql.org/docs/17/mvcc-caveats.html",
-     "заголовок": "PostgreSQL 17: 13.6. Caveats"},
-    {"база": "mslearn", "id": "ms-locking-guide", "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide?view=sql-server-ver16",
-     "заголовок": "SQL Server transaction locking and row versioning guide"},
-    {"база": "mslearn", "id": "ms-set-isolation-level", "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql?view=sql-server-ver16",
-     "заголовок": "SET TRANSACTION ISOLATION LEVEL (Transact-SQL)"},
-    {"база": "mslearn", "id": "ms-deadlocks", "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-deadlocks-guide?view=sql-server-ver16",
-     "заголовок": "Analyze and prevent deadlocks in SQL Server"}
+    {
+      "база": "pgdoc",
+      "id": "pg-transaction-iso",
+      "url": "https://www.postgresql.org/docs/17/transaction-iso.html",
+      "заголовок": "PostgreSQL 17: 13.2. Transaction Isolation"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-mvcc-intro",
+      "url": "https://www.postgresql.org/docs/17/mvcc-intro.html",
+      "заголовок": "PostgreSQL 17: 13.1. Introduction (Concurrency Control)"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-explicit-locking",
+      "url": "https://www.postgresql.org/docs/17/explicit-locking.html",
+      "заголовок": "PostgreSQL 17: 13.3. Explicit Locking"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-applevel-consistency",
+      "url": "https://www.postgresql.org/docs/17/applevel-consistency.html",
+      "заголовок": "PostgreSQL 17: 13.4. Data Consistency Checks at the Application Level"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-mvcc-caveats",
+      "url": "https://www.postgresql.org/docs/17/mvcc-caveats.html",
+      "заголовок": "PostgreSQL 17: 13.6. Caveats"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-locking-guide",
+      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide?view=sql-server-ver16",
+      "заголовок": "SQL Server transaction locking and row versioning guide"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-set-isolation-level",
+      "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql?view=sql-server-ver16",
+      "заголовок": "SET TRANSACTION ISOLATION LEVEL (Transact-SQL)"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-deadlocks",
+      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-deadlocks-guide?view=sql-server-ver16",
+      "заголовок": "Analyze and prevent deadlocks in SQL Server"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-runtime-config-client",
+      "url": "https://www.postgresql.org/docs/17/runtime-config-client.html",
+      "заголовок": "PostgreSQL 17: 19.11. Client Connection Defaults (lock_timeout, deadlock_timeout)"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-set-lock-timeout",
+      "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-lock-timeout-transact-sql?view=sql-server-ver16",
+      "заголовок": "SET LOCK_TIMEOUT (Transact-SQL)"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-runtime-config-locks",
+      "url": "https://www.postgresql.org/docs/17/runtime-config-locks.html",
+      "заголовок": "PostgreSQL 17: 19.13. Lock Management (deadlock_timeout, max_locks_per_transaction)"
+    }
   ]
 }
