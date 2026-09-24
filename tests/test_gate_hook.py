@@ -100,3 +100,17 @@ def test_missing_command_is_not_a_crash():
     """Payload без команды не роняет хук: ворота не имеют права ломать работу."""
     assert mod.решение({"tool_name": "Bash", "tool_input": {}}) is None
     assert mod.решение({"tool_name": "Bash"}) is None
+
+
+def test_shim_has_no_carriage_returns():
+    """Шим обязан лежать с LF: bash падает на CRLF.
+
+    Не RED→GREEN, а сторож опасности, проверенной руками: в репозитории
+    core.autocrlf=true, и без .gitattributes следующая выдача файла
+    подставила бы CRLF. Ворота исчезли бы молча — bash сказал бы
+    «$'\r': command not found» и вышел, а Claude Code принял бы пустой
+    вывод за «возражений нет».
+    """
+    шим = ROOT / "hooks" / "gate-1c.sh"
+    assert b"\r\n" not in шим.read_bytes(), (
+        "у %s перевод строки CRLF — bash такой файл не выполнит" % шим)
