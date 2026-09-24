@@ -64,7 +64,7 @@ Codex прочитал соседний `tech-journal.md` четырнадцат
 
 Перемер D4 в Codex после правки не изменил ничего: справочник снова
 не открылся. Проверка путей в журнале прогона показала, откуда Codex читает
-навыки — `C:\Users\ashil\.agents\skills`. Дата файла
+навыки — `%USERPROFILE%\.agents\skills`. Дата файла
 `1c-quality-gates/references/tech-journal.md` в той копии — 22.09.2026.
 Файлов `dbms-locks-and-isolation.md`, `dbms-indexes-and-plans.md`,
 `dbms-maintenance-and-backup.md` и `tech-journal-dbms.md` там не было вовсе.
