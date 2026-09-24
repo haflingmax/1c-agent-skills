@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Шим ворот: отсеять чужое, найти работающий python, передать payload.
+#
+# Порядок важен. Хук стоит на КАЖДОЙ команде bash, поэтому сначала дешёвый
+# отсев по подстроке, и только команда с «1cv8» платит за поиск
+# интерпретатора. Обычная работа не платит ничего.
+#
+# Имена переменных латиницей, в отличие от остального набора: bash не
+# принимает кириллицу в идентификаторах и падает с «not a valid identifier».
+# Поймано ручной проверкой 24.09.2026 — цикл не выполнялся вовсе, и шим
+# отвечал «python не найден» при установленном python.
+#
+# Кандидат проверяется ЗАПУСКОМ, а не наличием в PATH: в Windows python3
+# обычно разрешается в заглушку Microsoft Store (…/WindowsApps/python3),
+# которая печатает «Python» и выходит с кодом 0, ничего не сделав. Ворота
+# на такой заглушке молча исчезали бы — тот самый класс дефекта, который
+# набор чинил трижды 24.09.2026 (docs/debt.md, раздел 5).
+payload="$(cat)"
+
+case "$payload" in
+  *1cv8*|*1CV8*|*1Cv8*) ;;
+  *) exit 0 ;;
+esac
+
+for candidate in python python3 py; do
+  if command -v "$candidate" >/dev/null 2>&1; then
+    if [ "$("$candidate" -c "print('ok1c')" 2>/dev/null)" = "ok1c" ]; then
+      HOOK_PAYLOAD="$payload" "$candidate" "${CLAUDE_PLUGIN_ROOT}/hooks/gate-1c.py" || true
+      exit 0
+    fi
+  fi
+done
+
+printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"Ворота 1c-agent-skills пропустили команду не глядя: работающий python не найден, проверить командную строку 1cv8 нечем. Это не одобрение команды."}}'
+exit 0
