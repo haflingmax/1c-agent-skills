@@ -112,6 +112,60 @@
       "id": "ms-statistics",
       "url": "https://learn.microsoft.com/en-us/sql/relational-databases/statistics/statistics?view=sql-server-ver16",
       "заголовок": "Statistics"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-dbcc-freeproccache",
+      "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-freeproccache-transact-sql?view=sql-server-ver16",
+      "заголовок": "DBCC FREEPROCCACHE (Transact-SQL)"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-dbcc-indexdefrag",
+      "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-indexdefrag-transact-sql?view=sql-server-ver16",
+      "заголовок": "DBCC INDEXDEFRAG (Transact-SQL)"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-dbcc-dbreindex",
+      "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-dbreindex-transact-sql?view=sql-server-ver16",
+      "заголовок": "DBCC DBREINDEX (Transact-SQL)"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-backup-overview",
+      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/backup-overview-sql-server?view=sql-server-ver16",
+      "заголовок": "Backup overview (SQL Server)"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-recovery-models",
+      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16",
+      "заголовок": "Recovery models (SQL Server)"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-routine-vacuuming",
+      "url": "https://www.postgresql.org/docs/17/routine-vacuuming.html",
+      "заголовок": "PostgreSQL 17: 25.1. Routine Vacuuming"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-routine-reindex",
+      "url": "https://www.postgresql.org/docs/17/routine-reindex.html",
+      "заголовок": "PostgreSQL 17: 25.2. Routine Reindexing"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-backup-dump",
+      "url": "https://www.postgresql.org/docs/17/backup-dump.html",
+      "заголовок": "PostgreSQL 17: 26.1. SQL Dump"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-continuous-archiving",
+      "url": "https://www.postgresql.org/docs/17/continuous-archiving.html",
+      "заголовок": "PostgreSQL 17: 26.3. Continuous Archiving and Point-in-Time Recovery (PITR)"
     }
   ]
 }

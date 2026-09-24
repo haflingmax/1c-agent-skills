@@ -141,7 +141,9 @@ description: Публикация и эксплуатация 1С:Предпри
 Разбор — [публикация](references/web-publish.md),
 [администрирование кластера](references/cluster-admin.md),
 [профили безопасности](references/security-profiles.md),
-[резервное копирование](references/backup-and-restore.md).
+[резервное копирование](references/backup-and-restore.md); обслуживание
+самой СУБД и её копии — [регламентные операции и копии
+СУБД](references/dbms-maintenance-and-backup.md).
 
 ## Умолчания, открывающие дверь
 
