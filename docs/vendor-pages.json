@@ -70,6 +70,48 @@
       "id": "pg-runtime-config-locks",
       "url": "https://www.postgresql.org/docs/17/runtime-config-locks.html",
       "заголовок": "PostgreSQL 17: 19.13. Lock Management (deadlock_timeout, max_locks_per_transaction)"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-indexes-multicolumn",
+      "url": "https://www.postgresql.org/docs/17/indexes-multicolumn.html",
+      "заголовок": "PostgreSQL 17: 11.3. Multicolumn Indexes"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-indexes-opclass",
+      "url": "https://www.postgresql.org/docs/17/indexes-opclass.html",
+      "заголовок": "PostgreSQL 17: 11.10. Operator Classes and Operator Families"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-indexes-types",
+      "url": "https://www.postgresql.org/docs/17/indexes-types.html",
+      "заголовок": "PostgreSQL 17: 11.2. Index Types"
+    },
+    {
+      "база": "pgdoc",
+      "id": "pg-using-explain",
+      "url": "https://www.postgresql.org/docs/17/using-explain.html",
+      "заголовок": "PostgreSQL 17: 14.1. Using EXPLAIN"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-index-design",
+      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16",
+      "заголовок": "SQL Server index design guide"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-query-processing",
+      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/query-processing-architecture-guide?view=sql-server-ver16",
+      "заголовок": "Query processing architecture guide"
+    },
+    {
+      "база": "mslearn",
+      "id": "ms-statistics",
+      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/statistics/statistics?view=sql-server-ver16",
+      "заголовок": "Statistics"
     }
   ]
 }
