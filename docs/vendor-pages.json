@@ -1,171 +1,183 @@
 {
-  "_описание": "Страницы документации СУБД, на которые ссылается набор (решение 24). Список коммитится, сами страницы — нет: их выгружает tools/fetch-vendor-docs.py в _vendor/, как и корпуса ИТС. Растёт вместе с набором: страница добавляется тогда, когда на неё опирается утверждение.",
-  "версии": {
-    "pgdoc": "PostgreSQL 17 (в ИТС фигурируют сборки 16.x и 17.x «…1C» — сборки с патчами 1С, их отличий эта документация не описывает)",
-    "mslearn": "SQL Server, view=sql-server-ver16"
+ "_описание": "Страницы документации СУБД, на которые ссылается набор (решение 24). Список коммитится, сами страницы — нет: их выгружает tools/fetch-vendor-docs.py в _vendor/, как и корпуса ИТС. Растёт вместе с набором: страница добавляется тогда, когда на неё опирается утверждение.",
+ "версии": {
+  "pgdoc": "PostgreSQL 17 (в ИТС фигурируют сборки 16.x и 17.x «…1C» — сборки с патчами 1С, их отличий эта документация не описывает)",
+  "mslearn": "SQL Server, view=sql-server-ver16"
+ },
+ "страницы": [
+  {
+   "база": "pgdoc",
+   "id": "pg-transaction-iso",
+   "url": "https://www.postgresql.org/docs/17/transaction-iso.html",
+   "заголовок": "PostgreSQL 17: 13.2. Transaction Isolation"
   },
-  "страницы": [
-    {
-      "база": "pgdoc",
-      "id": "pg-transaction-iso",
-      "url": "https://www.postgresql.org/docs/17/transaction-iso.html",
-      "заголовок": "PostgreSQL 17: 13.2. Transaction Isolation"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-mvcc-intro",
-      "url": "https://www.postgresql.org/docs/17/mvcc-intro.html",
-      "заголовок": "PostgreSQL 17: 13.1. Introduction (Concurrency Control)"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-explicit-locking",
-      "url": "https://www.postgresql.org/docs/17/explicit-locking.html",
-      "заголовок": "PostgreSQL 17: 13.3. Explicit Locking"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-applevel-consistency",
-      "url": "https://www.postgresql.org/docs/17/applevel-consistency.html",
-      "заголовок": "PostgreSQL 17: 13.4. Data Consistency Checks at the Application Level"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-mvcc-caveats",
-      "url": "https://www.postgresql.org/docs/17/mvcc-caveats.html",
-      "заголовок": "PostgreSQL 17: 13.6. Caveats"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-locking-guide",
-      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide?view=sql-server-ver16",
-      "заголовок": "SQL Server transaction locking and row versioning guide"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-set-isolation-level",
-      "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql?view=sql-server-ver16",
-      "заголовок": "SET TRANSACTION ISOLATION LEVEL (Transact-SQL)"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-deadlocks",
-      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-deadlocks-guide?view=sql-server-ver16",
-      "заголовок": "Analyze and prevent deadlocks in SQL Server"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-runtime-config-client",
-      "url": "https://www.postgresql.org/docs/17/runtime-config-client.html",
-      "заголовок": "PostgreSQL 17: 19.11. Client Connection Defaults (lock_timeout, deadlock_timeout)"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-set-lock-timeout",
-      "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-lock-timeout-transact-sql?view=sql-server-ver16",
-      "заголовок": "SET LOCK_TIMEOUT (Transact-SQL)"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-runtime-config-locks",
-      "url": "https://www.postgresql.org/docs/17/runtime-config-locks.html",
-      "заголовок": "PostgreSQL 17: 19.13. Lock Management (deadlock_timeout, max_locks_per_transaction)"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-indexes-multicolumn",
-      "url": "https://www.postgresql.org/docs/17/indexes-multicolumn.html",
-      "заголовок": "PostgreSQL 17: 11.3. Multicolumn Indexes"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-indexes-opclass",
-      "url": "https://www.postgresql.org/docs/17/indexes-opclass.html",
-      "заголовок": "PostgreSQL 17: 11.10. Operator Classes and Operator Families"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-indexes-types",
-      "url": "https://www.postgresql.org/docs/17/indexes-types.html",
-      "заголовок": "PostgreSQL 17: 11.2. Index Types"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-using-explain",
-      "url": "https://www.postgresql.org/docs/17/using-explain.html",
-      "заголовок": "PostgreSQL 17: 14.1. Using EXPLAIN"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-index-design",
-      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16",
-      "заголовок": "SQL Server index design guide"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-query-processing",
-      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/query-processing-architecture-guide?view=sql-server-ver16",
-      "заголовок": "Query processing architecture guide"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-statistics",
-      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/statistics/statistics?view=sql-server-ver16",
-      "заголовок": "Statistics"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-dbcc-freeproccache",
-      "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-freeproccache-transact-sql?view=sql-server-ver16",
-      "заголовок": "DBCC FREEPROCCACHE (Transact-SQL)"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-dbcc-indexdefrag",
-      "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-indexdefrag-transact-sql?view=sql-server-ver16",
-      "заголовок": "DBCC INDEXDEFRAG (Transact-SQL)"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-dbcc-dbreindex",
-      "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-dbreindex-transact-sql?view=sql-server-ver16",
-      "заголовок": "DBCC DBREINDEX (Transact-SQL)"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-backup-overview",
-      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/backup-overview-sql-server?view=sql-server-ver16",
-      "заголовок": "Backup overview (SQL Server)"
-    },
-    {
-      "база": "mslearn",
-      "id": "ms-recovery-models",
-      "url": "https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16",
-      "заголовок": "Recovery models (SQL Server)"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-routine-vacuuming",
-      "url": "https://www.postgresql.org/docs/17/routine-vacuuming.html",
-      "заголовок": "PostgreSQL 17: 25.1. Routine Vacuuming"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-routine-reindex",
-      "url": "https://www.postgresql.org/docs/17/routine-reindex.html",
-      "заголовок": "PostgreSQL 17: 25.2. Routine Reindexing"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-backup-dump",
-      "url": "https://www.postgresql.org/docs/17/backup-dump.html",
-      "заголовок": "PostgreSQL 17: 26.1. SQL Dump"
-    },
-    {
-      "база": "pgdoc",
-      "id": "pg-continuous-archiving",
-      "url": "https://www.postgresql.org/docs/17/continuous-archiving.html",
-      "заголовок": "PostgreSQL 17: 26.3. Continuous Archiving and Point-in-Time Recovery (PITR)"
-    }
-  ]
+  {
+   "база": "pgdoc",
+   "id": "pg-mvcc-intro",
+   "url": "https://www.postgresql.org/docs/17/mvcc-intro.html",
+   "заголовок": "PostgreSQL 17: 13.1. Introduction (Concurrency Control)"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-explicit-locking",
+   "url": "https://www.postgresql.org/docs/17/explicit-locking.html",
+   "заголовок": "PostgreSQL 17: 13.3. Explicit Locking"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-applevel-consistency",
+   "url": "https://www.postgresql.org/docs/17/applevel-consistency.html",
+   "заголовок": "PostgreSQL 17: 13.4. Data Consistency Checks at the Application Level"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-mvcc-caveats",
+   "url": "https://www.postgresql.org/docs/17/mvcc-caveats.html",
+   "заголовок": "PostgreSQL 17: 13.6. Caveats"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-locking-guide",
+   "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide?view=sql-server-ver16",
+   "заголовок": "SQL Server transaction locking and row versioning guide"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-set-isolation-level",
+   "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql?view=sql-server-ver16",
+   "заголовок": "SET TRANSACTION ISOLATION LEVEL (Transact-SQL)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-deadlocks",
+   "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-deadlocks-guide?view=sql-server-ver16",
+   "заголовок": "Analyze and prevent deadlocks in SQL Server"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-runtime-config-client",
+   "url": "https://www.postgresql.org/docs/17/runtime-config-client.html",
+   "заголовок": "PostgreSQL 17: 19.11. Client Connection Defaults (lock_timeout, deadlock_timeout)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-set-lock-timeout",
+   "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-lock-timeout-transact-sql?view=sql-server-ver16",
+   "заголовок": "SET LOCK_TIMEOUT (Transact-SQL)"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-runtime-config-locks",
+   "url": "https://www.postgresql.org/docs/17/runtime-config-locks.html",
+   "заголовок": "PostgreSQL 17: 19.13. Lock Management (deadlock_timeout, max_locks_per_transaction)"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-indexes-multicolumn",
+   "url": "https://www.postgresql.org/docs/17/indexes-multicolumn.html",
+   "заголовок": "PostgreSQL 17: 11.3. Multicolumn Indexes"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-indexes-opclass",
+   "url": "https://www.postgresql.org/docs/17/indexes-opclass.html",
+   "заголовок": "PostgreSQL 17: 11.10. Operator Classes and Operator Families"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-indexes-types",
+   "url": "https://www.postgresql.org/docs/17/indexes-types.html",
+   "заголовок": "PostgreSQL 17: 11.2. Index Types"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-using-explain",
+   "url": "https://www.postgresql.org/docs/17/using-explain.html",
+   "заголовок": "PostgreSQL 17: 14.1. Using EXPLAIN"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-index-design",
+   "url": "https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide?view=sql-server-ver16",
+   "заголовок": "SQL Server index design guide"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-query-processing",
+   "url": "https://learn.microsoft.com/en-us/sql/relational-databases/query-processing-architecture-guide?view=sql-server-ver16",
+   "заголовок": "Query processing architecture guide"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-statistics",
+   "url": "https://learn.microsoft.com/en-us/sql/relational-databases/statistics/statistics?view=sql-server-ver16",
+   "заголовок": "Statistics"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-dbcc-freeproccache",
+   "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-freeproccache-transact-sql?view=sql-server-ver16",
+   "заголовок": "DBCC FREEPROCCACHE (Transact-SQL)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-dbcc-indexdefrag",
+   "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-indexdefrag-transact-sql?view=sql-server-ver16",
+   "заголовок": "DBCC INDEXDEFRAG (Transact-SQL)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-dbcc-dbreindex",
+   "url": "https://learn.microsoft.com/en-us/sql/t-sql/database-console-commands/dbcc-dbreindex-transact-sql?view=sql-server-ver16",
+   "заголовок": "DBCC DBREINDEX (Transact-SQL)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-backup-overview",
+   "url": "https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/backup-overview-sql-server?view=sql-server-ver16",
+   "заголовок": "Backup overview (SQL Server)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-recovery-models",
+   "url": "https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/recovery-models-sql-server?view=sql-server-ver16",
+   "заголовок": "Recovery models (SQL Server)"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-routine-vacuuming",
+   "url": "https://www.postgresql.org/docs/17/routine-vacuuming.html",
+   "заголовок": "PostgreSQL 17: 25.1. Routine Vacuuming"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-routine-reindex",
+   "url": "https://www.postgresql.org/docs/17/routine-reindex.html",
+   "заголовок": "PostgreSQL 17: 25.2. Routine Reindexing"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-backup-dump",
+   "url": "https://www.postgresql.org/docs/17/backup-dump.html",
+   "заголовок": "PostgreSQL 17: 26.1. SQL Dump"
+  },
+  {
+   "база": "pgdoc",
+   "id": "pg-continuous-archiving",
+   "url": "https://www.postgresql.org/docs/17/continuous-archiving.html",
+   "заголовок": "PostgreSQL 17: 26.3. Continuous Archiving and Point-in-Time Recovery (PITR)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-showplan-all",
+   "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-showplan-all-transact-sql?view=sql-server-ver16",
+   "заголовок": "SET SHOWPLAN_ALL (Transact-SQL)"
+  },
+  {
+   "база": "mslearn",
+   "id": "ms-statistics-profile",
+   "url": "https://learn.microsoft.com/en-us/sql/t-sql/statements/set-statistics-profile-transact-sql?view=sql-server-ver16",
+   "заголовок": "SET STATISTICS PROFILE (Transact-SQL)"
+  }
+ ]
 }
