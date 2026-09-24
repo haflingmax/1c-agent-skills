@@ -750,3 +750,71 @@ def test_dump_format_version_is_named(tmp_path):
     подходящие = [n for n in notes(line) if "K019" in n]
     assert подходящие, "версия формата не названа"
     assert "2.18" in подходящие[0]
+
+
+# --- Корзины «знать не может» и «решение владельца» ---
+# Этап ВОРОТА-ЧТЕНИЯ, задача 2. Обе применимы только к СУЩЕСТВУЮЩЕЙ базе:
+# на иллюстративном пути из тела навыка им нечего сказать.
+
+
+def _база(tmp_path, размер=10):
+    б = tmp_path / "base"
+    б.mkdir()
+    (б / "1Cv8.1CD").write_bytes(b"x" * размер)
+    return б
+
+
+def test_missing_auth_is_a_named_unknown(tmp_path):
+    """K020: есть ли пользователи — прибор знать не может и обязан сказать.
+
+    Инцидент 28.08.2026: без /N и /P платформа показала модальный диалог
+    авторизации, до которого пакетный процесс не дотянулся. Снаружи это
+    выглядело как зависание, а не как отказ, и стоило полутора часов.
+    """
+    б = _база(tmp_path)
+    line = ('1cv8 DESIGNER /F "%s" /LoadCfg new.cf /UpdateDBCfg -Dynamic- '
+            '/DisableStartupDialogs /Out log.txt' % б)
+    беда = [p for p in problems(line) if "K020" in p]
+    assert беда, "молчание о неизвестном — тот самый дефект"
+    assert "модальн" in беда[0], "отказ обязан объяснить, почему это похоже на зависание"
+
+
+def test_auth_present_closes_the_unknown(tmp_path):
+    """С /N вопрос закрыт: аутентификация задана явно."""
+    б = _база(tmp_path)
+    line = ('1cv8 DESIGNER /F "%s" /N Администратор /P"" /LoadCfg new.cf '
+            '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt' % б)
+    assert not any("K020" in p for p in problems(line))
+
+
+def test_missing_auth_is_silent_when_base_does_not_exist(tmp_path):
+    """На несуществующей базе вопроса о пользователях нет: спрашивать не у кого."""
+    line = ('1cv8 DESIGNER /F "%s" /LoadCfg new.cf /UpdateDBCfg -Dynamic- '
+            '/DisableStartupDialogs /Out log.txt' % (tmp_path / "нет"))
+    assert not any("K020" in p for p in problems(line))
+
+
+def test_non_empty_base_demands_owner_decision(tmp_path):
+    """K021: на непустой базе «рабочая или одноразовая» решает владелец."""
+    б = _база(tmp_path, размер=2 * 1024 * 1024)
+    line = ('1cv8 DESIGNER /F "%s" /N Админ /P"" /LoadCfg new.cf '
+            '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt' % б)
+    беда = [p for p in problems(line) if "K021" in p]
+    assert беда and "владельц" in беда[0]
+
+
+def test_owner_answer_closes_the_decision(tmp_path):
+    """--ответ база-одноразовая снимает вопрос, а не обходит его."""
+    б = _база(tmp_path, размер=2 * 1024 * 1024)
+    line = ('1cv8 DESIGNER /F "%s" /N Админ /P"" /LoadCfg new.cf '
+            '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt' % б)
+    беды = mod.check(line, CATALOG, ответы={"база-одноразовая"})[0]
+    assert not any("K021" in p for p in беды)
+
+
+def test_read_only_operation_needs_no_owner_decision(tmp_path):
+    """Выгрузка ничего не портит: решения владельца она не требует."""
+    б = _база(tmp_path, размер=2 * 1024 * 1024)
+    line = ('1cv8 DESIGNER /F "%s" /N Админ /P"" /DumpCfg out.cf '
+            '/DisableStartupDialogs /Out log.txt' % б)
+    assert not any("K021" in p for p in problems(line))
