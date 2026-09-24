@@ -48,6 +48,9 @@ READS_ONLY = {
     "check-map-promises.py":
         "сверяет карту глав в architecture.md со следами адресов "
         "в разделах, только читает",
+    "check-db-units.py":
+        "опись единиц с пометкой БД: читает docs/closure.json "
+        "и skills/, пишет только в stdout",
     "check-chapter-paragraphs.py":
         "перепись параграфов глав без адреса в наборе: читает выгрузку "
         "руководства и skills/, пишет только в stdout",
