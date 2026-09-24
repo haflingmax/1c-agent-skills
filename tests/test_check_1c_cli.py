@@ -691,3 +691,62 @@ def test_foreign_tool_note_is_addressable_by_code():
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     assert out.returncode == 0, out
     assert "[внимание K017]" in out.stdout, out.stdout
+
+
+# --- Корзина «увидел сам»: база на диске и версия формата выгрузки ---
+# Этап ВОРОТА-ЧТЕНИЯ, задача 1. Проверяльщик до этого разбирал только строку
+# и о мире не знал ничего: команда, указывающая в несуществующую базу,
+# проходила с кодом 0 и падала уже на платформе.
+
+
+def test_file_base_missing_is_named_but_not_blocked(tmp_path):
+    """K018: /F указывает в никуда — прибор называет это и не блокирует.
+
+    Замечание, а не отказ: тела навыков показывают команды с иллюстративными
+    путями, и отказ по несуществующей базе заблокировал бы собственные
+    примеры набора. Отказывают корзины «знать не может» и «решение
+    владельца» — они применимы только к существующей базе.
+    """
+    нет = tmp_path / "нет-такой-базы"
+    line = ('1cv8 DESIGNER /F "%s" /LoadCfg new.cf /UpdateDBCfg -Dynamic- '
+            '/DisableStartupDialogs /Out log.txt' % нет)
+    assert any("K018" in n for n in notes(line))
+    assert not any("K018" in p for p in problems(line))
+
+
+def test_client_server_base_is_not_checked_on_disk():
+    """Клиент-серверную базу на диске не ищут: /S — не путь."""
+    line = ('1cv8 DESIGNER /S srv/trade /LoadCfg new.cf /UpdateDBCfg -Dynamic- '
+            '/DisableStartupDialogs /Out log.txt')
+    assert not any("K018" in n for n in notes(line))
+
+
+def test_base_path_with_spaces_and_cyrillic(tmp_path):
+    """Пробелы и кириллица в пути не ломают проверку существования."""
+    база = tmp_path / "1С базы" / "торговля"
+    база.mkdir(parents=True)
+    (база / "1Cv8.1CD").write_bytes(b"x" * 10)
+    line = ('1cv8 DESIGNER /F "%s" /LoadCfg new.cf /UpdateDBCfg -Dynamic- '
+            '/DisableStartupDialogs /Out log.txt' % база)
+    assert not any("K018" in n for n in notes(line))
+
+
+def test_dump_format_version_is_named(tmp_path):
+    """K019: версию формата прибор видит, релиз платформы — нет. Называет обе.
+
+    Постмортем инцидента 28.08.2026: в src/Configuration.xml стояло
+    version="2.18" (формат платформы 8.3.25), а на машине была 8.3.27.
+    Обратная совместимость сработала — но проверить это надо было до
+    запуска, а не после полутора часов.
+    """
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "Configuration.xml").write_text(
+        '<?xml version="1.0"?>'
+        '<MetaDataObject version="2.18"/>',
+        encoding="utf-8")
+    line = ('1cv8 DESIGNER /F d:/base /LoadConfigFromFiles "%s" '
+            '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt' % src)
+    подходящие = [n for n in notes(line) if "K019" in n]
+    assert подходящие, "версия формата не названа"
+    assert "2.18" in подходящие[0]

@@ -167,6 +167,8 @@ K_NO_BATCH_FLAG = "K014"       # нет /DisableStartupDialogs
 K_NO_OUT_OR_RESULT = "K015"    # нет /Out и /DumpResult у деструктивной операции
 K_UPDATEDBCFG_STATIC = "K016"  # /UpdateDBCfg без -Dynamic
 K_FOREIGN_TOOL = "K017"        # инструмент вне компетенции проверяльщика
+K_BASE_MISSING = "K018"        # /F указывает на несуществующую базу
+K_DUMP_FORMAT = "K019"         # версия формата выгрузки названа, релиз платформы неизвестен
 
 CODE_PREFIX = re.compile(r"^(K\d{3})\s+(.*)$", re.S)
 
@@ -281,6 +283,50 @@ def matches_option(arg, option):
         tail = arg[len(option):]
         return bool(tail) and not tail[0].isalpha()
     return False
+
+
+def слитный(арг, ключ):
+    """Слитная форма ключа: /Fd:/base. Регистр платформе безразличен."""
+    return (len(арг) > len(ключ)
+            and арг[:len(ключ)].upper() == ключ.upper()
+            and not арг[len(ключ)].isalpha())
+
+
+def файловая_база(args):
+    """Путь из /F, если он есть.
+
+    /S — клиент-серверная база, на диске её нет, и искать там нечего:
+    проверка существования к ней неприменима и обязана молчать.
+    """
+    for i, a in enumerate(args):
+        имя = a.strip('"')
+        if имя.upper() == "/F" and i + 1 < len(args):
+            return args[i + 1].strip('"')
+        if слитный(имя, "/F"):
+            return имя[2:].strip('"')
+    return None
+
+
+def версия_формата(args):
+    """Версия формата выгрузки из Configuration.xml, если путь к ней указан.
+
+    Формат старше релиза платформы загружается, новее — нет. Сам релиз
+    прибору неизвестен, поэтому он называет то, что видит, и отсылает
+    к таблице соответствия: постмортем 28.08.2026 показал, что сверку
+    делают после полутора часов вместо тридцати секунд до запуска.
+    """
+    for i, a in enumerate(args):
+        if a.strip('"').upper() == "/LOADCONFIGFROMFILES" and i + 1 < len(args):
+            cfg = Path(args[i + 1].strip('"')) / "Configuration.xml"
+            if cfg.is_file():
+                голова = cfg.read_text(encoding="utf-8", errors="replace")[:4000]
+                # Объявление XML отбрасывается: в нём своё version="1.0",
+                # и первая редакция возвращала его вместо версии формата.
+                # Поймано тестом, а не глазами.
+                голова = re.sub(r"<\?xml[^>]*\?>", "", голова, count=1)
+                m = re.search(r'version="([\d.]+)"', голова)
+                return m.group(1) if m else None
+    return None
 
 
 def check(line, catalog):
@@ -481,6 +527,36 @@ def check(line, catalog):
     if not (names & BASE_KEYS) and mode != "CREATEINFOBASE" and not at_replaces_line:
         problems.append(
             "%s не задана база: нужен /F, /S, /IBName или /IBConnectionString" % K_NO_BASE)
+
+    # Корзина «увидел сам»: то, что проверяется с диска без платформы.
+    # До 24.09.2026 проверяльщик разбирал только строку, и команда,
+    # указывающая в несуществующую базу, проходила с кодом 0 — падала уже
+    # платформа, на открытии базы, и это выглядело как беда платформы.
+    путь = файловая_база(args)
+    существует = False
+    if путь is not None:
+        p = Path(путь)
+        существует = p.is_dir() and (p / "1Cv8.1CD").is_file()
+        if not существует:
+            # Замечание, а не отказ, и это по спеке: корзина «увидел сам»
+            # называет, отказывают корзины «знать не может» и «решение
+            # владельца». Практическая цена ошибки здесь высока: тела навыков
+            # показывают команды с иллюстративными путями (d:/base), и отказ
+            # по несуществующей базе заблокировал бы 34 собственных примера
+            # набора — сторож test_no_command_from_skill_bodies_is_blocked
+            # поймал это в тот же час.
+            notes.append(
+                "%s база по пути %s не найдена: нет ни каталога с 1Cv8.1CD, "
+                "ни файла базы. Если путь настоящий — команда запустится "
+                "и упадёт на открытии базы, а не на разборе строки"
+                % (K_BASE_MISSING, путь))
+
+    вер = версия_формата(args)
+    if вер:
+        notes.append(
+            "%s версия формата выгрузки %s. Релиз платформы прибору неизвестен: "
+            "формат старше релиза загружается, новее — нет. Сверить с "
+            "references/xml-dump-format.md" % (K_DUMP_FORMAT, вер))
 
     return problems, notes
 
