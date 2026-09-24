@@ -818,3 +818,71 @@ def test_read_only_operation_needs_no_owner_decision(tmp_path):
     line = ('1cv8 DESIGNER /F "%s" /N Админ /P"" /DumpCfg out.cf '
             '/DisableStartupDialogs /Out log.txt' % б)
     assert not any("K021" in p for p in problems(line))
+
+
+# --- Находки сплошного ревью ветки feat/reading-gate (24.09.2026) ---
+# Все три — ложные отказы законному, то есть третий критерий успеха этапа.
+
+
+def test_glued_auth_counts_as_authentication(tmp_path):
+    """C1: /NАдмин — это /N со значением, и корзина обязана это видеть.
+
+    Прибор противоречил сам себе в одном отчёте: «команда без /N» рядом
+    с «/NАдмин разобран как /N со значением Админ». Две модели слитного
+    ключа разошлись; верная — known_key, она уже есть в файле.
+    """
+    б = _база(tmp_path)
+    line = ('1cv8 DESIGNER /F "%s" /NАдмин /Pпароль /LoadCfg a.cf '
+            '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt' % б)
+    assert not any("K020" in p for p in problems(line))
+
+
+def test_glued_base_key_is_found(tmp_path):
+    """Слитный /Fd:/base — тоже база. Иначе все три корзины молча отключались."""
+    б = _база(tmp_path)
+    args = mod.split_args('1cv8 DESIGNER /F%s /DumpCfg a.cf' % б)
+    assert mod.файловая_база(args, CATALOG["ключи"]) == str(б)
+
+
+def test_interactive_launch_is_not_denied(tmp_path):
+    """I4: открыть базу в предприятии — законно, и диалог там штатный.
+
+    K020 обосновывает себя тем, что «пакетный процесс не дотянется»
+    до модального диалога. У интерактивного запуска этого довода нет:
+    диалог авторизации — нормальная часть работы, а не зависание.
+    """
+    б = _база(tmp_path)
+    assert not any("K020" in p for p in problems('1cv8 ENTERPRISE /F "%s"' % б))
+    assert not any("K020" in p for p in problems('1cv8 DESIGNER /F "%s"' % б))
+
+
+def test_batch_launch_without_auth_is_still_denied(tmp_path):
+    """Обратная сторона: пакетный запуск без /N по-прежнему отказ."""
+    б = _база(tmp_path)
+    line = ('1cv8 DESIGNER /F "%s" /DumpCfg a.cf /DisableStartupDialogs '
+            '/Out log.txt' % б)
+    assert any("K020" in p for p in problems(line))
+
+
+def test_auth_message_does_not_claim_more_than_it_checks(tmp_path):
+    """M12: проверяется /N, а текст говорил «без /N и /P» — ложно при наличии /P."""
+    б = _база(tmp_path)
+    line = ('1cv8 DESIGNER /F "%s" /P"" /DumpCfg a.cf /DisableStartupDialogs '
+            '/Out log.txt' % б)
+    беда = [p for p in problems(line) if "K020" in p]
+    assert беда
+    assert "без /N и /P" not in беда[0]
+
+
+def test_quoted_value_after_key_is_one_argument():
+    """C3: /P"пароль с пробелом" — один аргумент, а не три.
+
+    Регулярка отделяла кавычки только у токена, который С НИХ начинается;
+    для /P"…" первым срабатывал \S+, и значение рвалось по пробелам.
+    Пока разбор только печатали, это была косметика. С появлением
+    обёртки это фактическая строка запуска: платформа получала другой
+    пароль и два лишних аргумента.
+    """
+    args = mod.split_args('1cv8 DESIGNER /F d:/base /P"пароль с пробелом" /DumpCfg a.cf')
+    assert '/P"пароль с пробелом"' in args, args
+    assert "с" not in args and "пробелом\"" not in args, args

@@ -33,14 +33,52 @@
 """
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
-КОРЕНЬ = Path(os.environ.get("CLAUDE_PLUGIN_ROOT",
-                             Path(__file__).resolve().parent.parent))
+КОРЕНЬ = Path(os.environ.get("CLAUDE_PLUGIN_ROOT")
+              or Path(__file__).resolve().parent.parent)
 ПРОВЕРЯЛЬЩИК = (КОРЕНЬ / "skills" / "1c-build-and-db" / "scripts"
                 / "check-1c-cli.py")
+
+
+# Ключи, значение которых — секрет. Причина отказа несёт вывод
+# проверяльщика, а тот печатает разбор ключа вместе со значением. Без
+# вычистки пароль уезжал бы в контекст модели и в расшифровку разговора —
+# усиление утечки, а не её источник, но усиление ненужное. Найдено
+# сплошным ревью ветки 24.09.2026.
+СЕКРЕТНЫЕ = ("/P", "/WSP", "/UCP", "/CP", "/ConfigurationRepositoryP")
+
+
+def _вычистить(текст, команда):
+    """Убирает из текста значения секретных ключей, взятые из команды.
+
+    Вычищается по факту: значения берутся из самой команды, а не угадываются
+    в тексте. Так вычистка не зависит от того, как проверяльщик их напечатал.
+    """
+    for кусок in re.findall(r'/\S*?"[^"]*"|/\S+', команда):
+        for ключ in СЕКРЕТНЫЕ:
+            if not кусок.upper().startswith(ключ.upper()):
+                continue
+            значение = кусок[len(ключ):].strip('"')
+            if len(значение) >= 3:
+                текст = текст.replace(значение, "***")
+            break
+    return текст
+
+
+def _сегменты(команда):
+    """Куски составной команды, которые сами являются запуском программы.
+
+    Проверяльщик судит по первому слову, и у `cd X && 1cv8 …` это `cd` —
+    он честно отвечает «вне компетенции» с нулевым кодом, а ворота
+    пропускают команду инцидента. `cd X && …` — самая частая форма записи
+    у агентов. Найдено сплошным ревью ветки 24.09.2026.
+    """
+    куски = re.split(r"&&|\|\||;|\|", команда)
+    return [к.strip() for к in куски if к.strip()]
 
 
 def решение(payload):
@@ -51,13 +89,28 @@ def решение(payload):
     if "1cv8" not in команда.lower():
         return None
     if not ПРОВЕРЯЛЬЩИК.is_file():
-        return None
+        # Пропуск, но громкий: молчаливое исчезновение ворот — тот самый
+        # дефект, который набор чинил трижды 24.09.2026. Битая или неполная
+        # установка плагина не должна снимать ворота без единого признака.
+        пусто = ("Ворота 1c-agent-skills пропустили команду не глядя: "
+                 "проверяльщик не найден по пути %s. Установка плагина "
+                 "неполна. Это не одобрение команды." % ПРОВЕРЯЛЬЩИК)
+        return {"hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "permissionDecisionReason": пусто,
+        }}
 
-    готово = subprocess.run(
-        [sys.executable, str(ПРОВЕРЯЛЬЩИК), команда],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-        env=dict(os.environ, PYTHONIOENCODING="utf-8"))
-    if готово.returncode == 0:
+    for сегмент in _сегменты(команда):
+        if "1cv8" not in сегмент.lower():
+            continue
+        готово = subprocess.run(
+            [sys.executable, str(ПРОВЕРЯЛЬЩИК), сегмент],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+        if готово.returncode != 0:
+            break
+    else:
         return None
 
     причина = (
@@ -71,6 +124,7 @@ def решение(payload):
         "процесса (1cv8.exe возвращает управление немедленно и без этого "
         "не оставляет ни журнала, ни кода возврата) и объяснит зависание."
         % готово.stdout.strip())
+    причина = _вычистить(причина, команда)
     return {"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",

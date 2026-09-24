@@ -7,7 +7,6 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-1c.sh\"",
-            "shell": "bash",
             "timeout": 10
           }
         ]

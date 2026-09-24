@@ -79,14 +79,27 @@ def test_valid_command_passes(tmp_path):
     assert mod.решение(payload(команда)) is None
 
 
-def test_quotes_inside_command_do_not_leak_secrets():
-    """Пароль из команды не попадает в текст отказа.
+def test_password_does_not_leak_into_the_refusal():
+    """Пароль из команды не попадает ни в причину отказа, ни в контекст.
 
-    Отказ читает и модель, и человек, и он остаётся в расшифровке
-    разговора. Пароль там не нужен.
+    Причина отказа уезжает в контекст модели и остаётся в расшифровке
+    разговора — это усиление утечки, а не её источник. Прежний сторож
+    был зелёным по случайности: он брал пароль С ПРОБЕЛАМИ, который
+    разборщик рвал на куски, и точная подстрока не находилась. Найдено
+    сплошным ревью ветки 24.09.2026.
     """
     ответ = mod.решение(payload(
-        '1cv8 CONFIG /F d:/base /P"пароль с пробелом" /LoadCfg a.cf'))
+        "1cv8 CONFIG /F d:/base /N admin /PSecretPass123 /LoadCfg a.cf"))
+    assert ответ is not None
+    вывод = ответ["hookSpecificOutput"]
+    assert "SecretPass123" not in вывод["permissionDecisionReason"]
+    assert "SecretPass123" not in вывод["additionalContext"]
+
+
+def test_quoted_password_with_spaces_does_not_leak():
+    """То же для пароля в кавычках: /P"пароль с пробелом"."""
+    ответ = mod.решение(payload(
+        '1cv8 CONFIG /F d:/base /N admin /P"пароль с пробелом" /LoadCfg a.cf'))
     assert ответ is not None
     assert "пароль с пробелом" not in ответ["hookSpecificOutput"]["permissionDecisionReason"]
 
@@ -114,3 +127,37 @@ def test_shim_has_no_carriage_returns():
     шим = ROOT / "hooks" / "gate-1c.sh"
     assert b"\r\n" not in шим.read_bytes(), (
         "у %s перевод строки CRLF — bash такой файл не выполнит" % шим)
+
+
+def test_compound_command_is_not_a_bypass():
+    """I5: `cd X && 1cv8 …` — ворота обязаны проверить сегмент с 1cv8.
+
+    Проверяльщик берёт первое слово команды; у составной это `cd`, и он
+    честно отвечает «вне компетенции» с кодом 0. Ворота пропускали ровно
+    команду инцидента, записанную самой частой у агентов формой.
+    """
+    ответ = mod.решение(payload(
+        "cd d:/work && 1cv8 CONFIG /F d:/base /LoadConfigFromFiles src"))
+    assert ответ is not None, "составная команда обошла ворота"
+    assert "K002" in ответ["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_compound_command_with_legitimate_parts_passes():
+    """Обратная сторона: составная команда без 1cv8 проходит."""
+    assert mod.решение(payload("cd d:/work && git status && ls")) is None
+
+
+def test_missing_checker_is_a_loud_pass(tmp_path, monkeypatch):
+    """I6: проверяльщика нет — пропустить, но сказать.
+
+    Спека требует этого прямо для соседнего случая (нет python): молчаливый
+    пропуск — тот самый дефект, который набор чинил трижды. Шим правило
+    соблюдал, питон — нет: битая установка плагина снимала ворота без
+    единого признака.
+    """
+    monkeypatch.setattr(mod, "ПРОВЕРЯЛЬЩИК", tmp_path / "нет-такого.py")
+    ответ = mod.решение(payload("1cv8 CONFIG /F d:/base /LoadCfg a.cf"))
+    assert ответ is not None, "ворота исчезли молча"
+    вывод = ответ["hookSpecificOutput"]
+    assert вывод["permissionDecision"] == "allow"
+    assert "проверяльщик" in вывод["permissionDecisionReason"].lower()
