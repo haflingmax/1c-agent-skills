@@ -104,9 +104,17 @@ def решение(payload):
     for сегмент in _сегменты(команда):
         if "1cv8" not in сегмент.lower():
             continue
+        # Проверяльщик ищет базу по пути из /F, и относительный путь он
+        # считает от своего рабочего каталога. Каталог команды лежит
+        # в payload полем cwd; без него вердикт корзин относился бы
+        # к чужому каталогу. Взято в работу 24.09.2026 из отложенных.
+        каталог = payload.get("cwd") or None
+        if каталог and not Path(каталог).is_dir():
+            каталог = None
         готово = subprocess.run(
             [sys.executable, str(ПРОВЕРЯЛЬЩИК), сегмент],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=каталог,
             env=dict(os.environ, PYTHONIOENCODING="utf-8"))
         if готово.returncode != 0:
             break

@@ -97,7 +97,8 @@ BATCH_REQUIRED = "/DisableStartupDialogs"
 BASE_KEYS = {"/F", "/S", "/IBName", "/IBConnectionString"}
 
 # Ключи, которые меняют базу необратимо. Для них проверяем страховку.
-DESTRUCTIVE = {"/LoadCfg", "/LoadConfigFromFiles", "/UpdateDBCfg", "/RestoreIB", "/MergeCfg"}
+DESTRUCTIVE = {"/LoadCfg", "/LoadConfigFromFiles", "/UpdateDBCfg", "/RestoreIB",
+               "/MergeCfg", "/EraseData"}
 
 # Н-02, третий раунд ревью: absorbs_glued_tail() отвечает на вопрос «какой
 # ключ платформа подставит», а не на вопрос «можно ли доверять этой
@@ -194,6 +195,37 @@ def load_catalog():
         print("нет файла %s" % CATALOG.name)
         raise SystemExit(2)
     return json.loads(CATALOG.read_text(encoding="utf-8"))
+
+
+ОТВЕТЫ = frozenset({"пользователей-нет", "база-одноразовая", "копия-сделана"})
+
+
+def вынуть_ответы(строка):
+    """(множество ответов, строка без них).
+
+    `--ответ` принимается где угодно: и отдельным аргументом до команды,
+    и внутри самой строки. Текст отказа предлагает «Ответить: --ответ
+    база-одноразовая», и записать это внутрь кавычек — естественное
+    прочтение; прежде такой ответ не снимался и вдобавок получал K013
+    «не является опцией». Взято в работу 24.09.2026 из отложенных.
+
+    Распознаются только известные ответы: `--ответ` с чужим словом
+    остаётся в строке и будет разобран как обычный аргумент — иначе
+    опечатка в ответе молча снимала бы вопрос.
+    """
+    слова = строка.split()
+    ответы = set()
+    остаток = []
+    i = 0
+    while i < len(слова):
+        if (слова[i] == "--ответ" and i + 1 < len(слова)
+                and слова[i + 1] in ОТВЕТЫ):
+            ответы.add(слова[i + 1])
+            i += 2
+            continue
+        остаток.append(слова[i])
+        i += 1
+    return ответы, " ".join(остаток)
 
 
 def split_args(line):
@@ -657,21 +689,10 @@ def main():
         # вместо помощи.
         print(__doc__.strip())
         return 0
-    ответы = set()
-    остаток = []
-    i = 0
-    while i < len(argv):
-        if argv[i] == "--ответ" and i + 1 < len(argv):
-            ответы.add(argv[i + 1])
-            i += 2
-            continue
-        остаток.append(argv[i])
-        i += 1
-    argv = остаток
-
-    line = " ".join(argv).strip()
+    ответы, line = вынуть_ответы(" ".join(argv).strip())
     if not line:
-        line = sys.stdin.read().strip()
+        ответы_из_потока, line = вынуть_ответы(sys.stdin.read().strip())
+        ответы |= ответы_из_потока
     if not line:
         print(__doc__.strip().splitlines()[0])
         return 2

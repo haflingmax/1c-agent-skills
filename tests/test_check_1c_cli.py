@@ -886,3 +886,34 @@ def test_quoted_value_after_key_is_one_argument():
     args = mod.split_args('1cv8 DESIGNER /F d:/base /P"пароль с пробелом" /DumpCfg a.cf')
     assert '/P"пароль с пробелом"' in args, args
     assert "с" not in args and "пробелом\"" not in args, args
+
+
+# --- Отложенные мелочи, взятые в работу по просьбе владельца (24.09.2026) ---
+
+
+def test_erasedata_is_destructive(tmp_path):
+    """/EraseData стирает данные — значит необратимая операция.
+
+    Множество DESTRUCTIVE сторожит две вещи разом: требование /Out
+    и /DumpResult (K015) и вопрос владельцу о копии (K021). /EraseData
+    не входил ни туда, ни сюда.
+    """
+    assert "/EraseData" in mod.DESTRUCTIVE
+    б = _база(tmp_path, размер=2 * 1024 * 1024)
+    line = ('1cv8 ENTERPRISE /F "%s" /N Админ /P"" /EraseData '
+            '/DisableStartupDialogs /Out log.txt' % б)
+    assert any("K021" in p for p in problems(line))
+
+
+def test_answer_inside_the_command_string_is_understood():
+    """`--ответ` понимается и внутри строки команды.
+
+    Текст отказа предлагает «Ответить: --ответ база-одноразовая», и записать
+    это внутрь кавычек — естественное прочтение. Прежде такой ответ не
+    снимался, да ещё и получал K013 «не является опцией /Out».
+    """
+    из_строки = mod.вынуть_ответы(
+        '--ответ база-одноразовая 1cv8 DESIGNER /F d:/base /DumpCfg a.cf')
+    assert из_строки[0] == {"база-одноразовая"}
+    assert "--ответ" not in из_строки[1]
+    assert из_строки[1].startswith("1cv8 DESIGNER")

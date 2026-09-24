@@ -161,3 +161,21 @@ def test_missing_checker_is_a_loud_pass(tmp_path, monkeypatch):
     вывод = ответ["hookSpecificOutput"]
     assert вывод["permissionDecision"] == "allow"
     assert "проверяльщик" in вывод["permissionDecisionReason"].lower()
+
+
+def test_relative_base_path_is_resolved_against_the_command_cwd(tmp_path):
+    """Относительный /F считается от каталога команды, а не от каталога хука.
+
+    Claude Code кладёт в payload поле cwd. Без него вердикт корзин
+    относился к чужому каталогу: база «есть» или «нет» решалась там, где
+    запущен хук. Взято в работу 24.09.2026 из отложенных.
+    """
+    б = tmp_path / "base"
+    б.mkdir()
+    (б / "1Cv8.1CD").write_bytes(b"x" * (2 * 1024 * 1024))
+    payload_ = payload("1cv8 DESIGNER /F base /N Admin /P\"\" /LoadCfg a.cf "
+                       "/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt")
+    payload_["cwd"] = str(tmp_path)
+    ответ = mod.решение(payload_)
+    assert ответ is not None, "база по относительному пути не найдена"
+    assert "K021" in ответ["hookSpecificOutput"]["permissionDecisionReason"]
