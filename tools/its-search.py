@@ -59,6 +59,11 @@ ITS = ROOT / "_its"
     "devguide": (ITS / "cmdline" / "its-devguide-full.json", "docs", "руководство разработчика"),
     "admin": (ITS / "cmdline" / "its-admin-full.json", None, "руководство администратора"),
     "pril7": (ITS / "cmdline" / "its-pril7-full.json", None, "приложение 7: ключи командной строки"),
+    # Четвёртая опора этапа УГЛУБЛЕНИЕ-БД (решение 24): документация СУБД.
+    # Выгружается `fetch-vendor-docs.py` по списку `docs/vendor-pages.json`;
+    # сама выгрузка, как и корпуса ИТС, в репозиторий не идёт.
+    "pgdoc": (ROOT / "_vendor" / "pgdoc-full.json", "docs", "документация PostgreSQL"),
+    "mslearn": (ROOT / "_vendor" / "mslearn-full.json", "docs", "документация Microsoft Learn по SQL Server"),
 }
 
 

@@ -217,13 +217,16 @@ Codex (`.codex-plugin/plugin.json` — поля, которые официаль
 Пакеты нужны только тем, кто дорабатывает набор:
 
 ```powershell
-pip install pyyaml pytest
+pip install pyyaml pytest beautifulsoup4
 ```
 
 - `pyyaml` — `tools/check-manifests.py` и `tests/test_check_manifests.py`. Без него
   `python -m pytest tests/ -q` не соберётся вовсе (код 2, `ImportError: No module named
   yaml`), а сам проверяльщик упадёт на импорте;
-- `pytest` — регресс в `tests/`.
+- `pytest` — регресс в `tests/`;
+- `beautifulsoup4` (импортируется как `bs4`) — `tools/fetch-vendor-docs.py`: выгрузка документации СУБД
+  (решение 24) вынимает из страницы текст статьи. Нужен только тому, кто обновляет
+  корпус `_vendor/`; сам набор без него работает.
 
 Список сторожит `tests/test_tools_write_guard.py`: новая внешняя зависимость роняет
 прогон, пока не названа здесь.

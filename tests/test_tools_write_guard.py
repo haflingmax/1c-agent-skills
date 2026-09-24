@@ -54,6 +54,9 @@ READS_ONLY = {
     "native-arg.ps1":
         "функция экранирования аргумента для нативных программ, "
         "файлов не трогает",
+    "fetch-vendor-docs.py":
+        "скачивает страницы документации СУБД в _vendor/ по списку "
+        "docs/vendor-pages.json; skills/ не трогает",
     "install-skills.ps1": "копирует ИЗ skills/ в каталоги сред",
     "run-acceptance.ps1": "копирует ИЗ skills/ и гоняет агентов",
     "run-prompt.ps1": "гоняет один промпт, файлов набора не трогает",
