@@ -19,6 +19,50 @@ param(
 . (Join-Path $PSScriptRoot 'native-arg.ps1')
 $PromptArg = ConvertTo-NativeArgument $Prompt
 
+# Копия навыков в среде обязана совпадать с репозиторием, иначе прогон мерит
+# не набор, а вчерашний снимок.
+#
+# Поймано 24.09.2026. Codex читает навыки из $env:USERPROFILE\.agents\skills,
+# а install-skills.ps1 до того дня клал только в Kilo и Claude. Копия Codex
+# осталась от 22.09.2026, и в ней не было ни одного файла четырёх заходов
+# этапа УГЛУБЛЕНИЕ-БД. Четыре прогона показали «раздел не поднялся» и «новый
+# справочник не открыт» — верно по факту и полностью бессмысленно по смыслу:
+# открывать было нечего. Правка маршрута, сделанная по такому замеру, чинила
+# бы то, что не ломалось.
+#
+# Сверка дешёвая: имена и длины файлов. Содержимое не читается — правка,
+# не меняющая длину файла, встречается реже, чем стоимость чтения всего
+# набора на каждом прогоне.
+$КореньНавыков = switch ($Env) {
+  'kilo'   { Join-Path $env:USERPROFILE '.config\kilo\skills' }
+  'claude' { Join-Path $env:USERPROFILE '.claude\skills' }
+  'codex'  { Join-Path $env:USERPROFILE '.agents\skills' }
+}
+$ИсточникНавыков = (Resolve-Path (Join-Path $PSScriptRoot '..\skills')).Path
+function Снимок-Навыков([string]$Корень) {
+  $снимок = @{}
+  if (-not (Test-Path $Корень)) { return $снимок }
+  Get-ChildItem $Корень -Recurse -File | ForEach-Object {
+    $снимок[$_.FullName.Substring($Корень.Length).TrimStart('')] = $_.Length
+  }
+  return $снимок
+}
+$наш = Снимок-Навыков $ИсточникНавыков
+$вСреде = Снимок-Навыков $КореньНавыков
+$расхождения = @()
+foreach ($ключ in $наш.Keys) {
+  if (-not $вСреде.ContainsKey($ключ)) { $расхождения += "нет в среде: $ключ" }
+  elseif ($вСреде[$ключ] -ne $наш[$ключ]) { $расхождения += "отличается: $ключ" }
+}
+if ($расхождения.Count -gt 0) {
+  $показать = $расхождения | Select-Object -First 5
+  throw ("копия навыков в среде $Env устарела или неполна (" +
+         "$($расхождения.Count) расхождений, каталог $КореньНавыков):`n  " +
+         ($показать -join "`n  ") +
+         "`nПрогон не выполнялся: он мерил бы не набор, а старую копию. " +
+         "Поставить свежие: tools/install-skills.ps1")
+}
+
 if (-not $Dir) { $Dir = Join-Path $env:TEMP ("1c-run\" + [guid]::NewGuid().ToString('N').Substring(0,8)) }
 New-Item -ItemType Directory -Force $Dir | Out-Null
 $log = Join-Path $Dir 'run.log'
