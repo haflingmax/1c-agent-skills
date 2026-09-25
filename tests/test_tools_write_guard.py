@@ -66,6 +66,10 @@ READS_ONLY = {
     "allow-skills-in-kilo.py":
         "читает имена из skills/, пишет в kilo.jsonc владельца — в skills/ "
         "не пишет ни байта",
+    "sync-skills-to-codex-vscode.ps1":
+        "копирует ИЗ skills/ в раздаточный каталог соседнего репозитория; "
+        "в skills/ не пишет, каталог назначения сверяет по имени перед "
+        "удалением",
     "prove-blocking-rules.ps1": "гоняет 1cv8 во временном каталоге",
     "build-reference-registry.py": "читает _ref/, пишет опись в docs/, skills/ не трогает",
     "merge-reference-reading.py": "сводит выводы читателей в docs/, skills/ не трогает",
