@@ -985,3 +985,32 @@ def test_option_after_a_valueless_key_is_not_a_lost_value():
         ["1cv8.exe", "DESIGNER", "/F", "d:/base", "/UpdateDBCfg", "-Dynamic-",
          "/DisableStartupDialogs", "/Out", "log.txt"])
     assert not any("K022" in b for b in проблемы), проблемы
+
+
+# --- Незакрытая кавычка (25.09.2026, четвёртый живой прогон) ---
+# PowerShell 5.1, передавая строку нативной программе, превращает «""»
+# внутри неё в одну кавычку. Проверено печатью sys.argv: строка
+# «… /P "" /DumpCfg … /DisableStartupDialogs …» доехала как
+# «… /P " /DumpCfg … /DisableStartupDialogs …». Разбор строки склеил весь
+# хвост в «значение» /P, ключей после него не увидел и ответил кодом 0 —
+# «можно запускать» про команду, которую не прочёл.
+
+
+def test_unbalanced_quote_is_refused():
+    """Нечётное число кавычек — строка искажена, проверять нечего."""
+    out = problems('1cv8 DESIGNER /F d:/base /N Админ /P " /DumpCfg d:/x.cf '
+                   '/DisableStartupDialogs /Out d:/o.txt')
+    assert any("K023" in b for b in out), out
+
+
+def test_unbalanced_quote_makes_the_script_exit_nonzero():
+    """Код возврата — главное: агент смотрит на него, а не на текст."""
+    assert exit_code('1cv8 DESIGNER /F d:/base /N Админ /P " /DumpCfg d:/x.cf '
+                     '/DisableStartupDialogs /Out d:/o.txt') == 1
+
+
+def test_balanced_quotes_are_not_refused():
+    """Парные кавычки — законная форма, в том числе слитная /P""."""
+    out = problems('1cv8 DESIGNER /F "d:/1C base" /N Админ /P"" /DumpCfg d:/x.cf '
+                   '/DisableStartupDialogs /Out d:/o.txt')
+    assert not any("K023" in b for b in out), out

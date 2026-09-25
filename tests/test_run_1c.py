@@ -329,3 +329,62 @@ def test_empty_password_flag_through_powershell_launches(tmp_path):
     вывод = р.stdout.decode("utf-8", errors="replace")
     assert р.returncode == 0, вывод
     assert "K022" not in вывод, вывод
+
+
+# --- Работа против ожидания (25.09.2026, четвёртый живой прогон) ---
+# Прежний признак зависания — «вывод пуст, 1Cv8.1CD не менялся» — ложен
+# для любой долгой пакетной операции: /Out пишется в конце, а время правки
+# файла базы, открытого на запись, на Windows не обновляется до закрытия.
+# Проверено запуском: /DumpConfigToFiles шёл, 74 с процессорного времени
+# и 4000 выгруженных файлов, а обёртка дважды напечатала «модальный диалог…
+# Не ждать дольше». В Codex агент по этой подсказке убил загрузку
+# конфигурации на третьей минуте. Различает работу и ожидание не файл,
+# а процессорное время процесса.
+
+
+def _крутит_процессор(секунд):
+    """Команда, которая занята делом и молчит: вывода нет, база не трогается."""
+    return [sys.executable, "-c",
+            "import time\nt=time.time()\nwhile time.time()-t<%d: pass" % секунд]
+
+
+def test_busy_silent_process_is_not_called_a_hang(tmp_path, capsys):
+    """Процессор занят — это работа, и подсказки «не ждать» быть не должно."""
+    б = база(tmp_path)
+    команда = _крутит_процессор(12) + [
+        "DESIGNER", "/F", str(б), "/N", "Admin", "/DumpCfg", "a.cf",
+        "/DisableStartupDialogs", "/Out", str(tmp_path / "log.txt")]
+    код, отчёт = mod.запустить(команда, ответы={"база-одноразовая"}, таймаут=60,
+                               порог_подозрения=3)
+    напечатано = capsys.readouterr().out
+    assert код == 0, отчёт
+    assert "модальный диалог" not in напечатано + отчёт, напечатано
+    assert "Не ждать" not in напечатано + отчёт, напечатано
+    assert "работает" in напечатано, напечатано
+
+
+def test_busy_process_killed_by_timeout_is_not_called_a_hang(tmp_path):
+    """Истёк таймаут у работающего процесса — совет «увеличить таймаут»."""
+    б = база(tmp_path)
+    команда = _крутит_процессор(30) + [
+        "DESIGNER", "/F", str(б), "/N", "Admin", "/DumpCfg", "a.cf",
+        "/DisableStartupDialogs", "/Out", str(tmp_path / "log.txt")]
+    код, отчёт = mod.запустить(команда, ответы={"база-одноразовая"}, таймаут=5,
+                               порог_подозрения=2)
+    assert код == 3
+    assert "модальный диалог" not in отчёт, отчёт
+    assert "--таймаут" in отчёт, отчёт
+
+
+def test_cpu_time_of_a_running_process_is_measurable():
+    """Процессорное время процесса снимается в этой ОС, а не молча None."""
+    import subprocess
+    п = subprocess.Popen(_крутит_процессор(3))
+    try:
+        import time
+        time.sleep(1.5)
+        снято = mod._процессорное_время(п.pid)
+    finally:
+        п.kill(); п.wait()
+    if os.name == "nt" or sys.platform.startswith("linux"):
+        assert снято is not None and снято > 0.3, снято
