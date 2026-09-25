@@ -12,6 +12,7 @@ docs/evidence/2026-08-22-blocking-rules.md.
 Запуск: python -m pytest tests/test_run_1c.py -v
 """
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -31,10 +32,29 @@ def база(где, размер=10):
     return б
 
 
-def заглушка(tmp_path, тело, имя="подставной-1cv8.cmd"):
-    """Подставная «платформа»: делает ровно то, что нужно проверить."""
-    ф = tmp_path / имя
-    ф.write_text("@echo off\r\n" + тело, encoding="ascii", newline="")
+ЗАГЛУШКИ = {
+    # что проверяем: (тело для cmd.exe, тело для POSIX-оболочки)
+    "молчит и не завершается": ("ping -n 31 127.0.0.1 >nul\r\n", "sleep 30\n"),
+    "сразу выходит": ("exit /b 0\r\n", "exit 0\n"),
+    "печатает третий аргумент": ("echo %3\r\n", 'echo "$3"\n'),
+}
+
+
+def заглушка(tmp_path, что, имя="подставной-1cv8"):
+    """Подставная «платформа»: делает ровно то, что нужно проверить.
+
+    Тело выбирается по ОС: `.cmd` в Windows, исполняемый скрипт с шебангом
+    на POSIX. Без этого тесты обёртки были привязаны к Windows, а прибор
+    набора обязан быть надёжен в любой среде — правило принято 25.09.2026.
+    """
+    для_cmd, для_posix = ЗАГЛУШКИ[что]
+    if os.name == "nt":
+        ф = tmp_path / (имя + ".cmd")
+        ф.write_text("@echo off\r\n" + для_cmd, encoding="ascii", newline="")
+        return ф
+    ф = tmp_path / (имя + ".sh")
+    ф.write_text("#!/bin/sh\n" + для_posix, encoding="ascii", newline="")
+    ф.chmod(0o755)
     return ф
 
 
@@ -59,7 +79,7 @@ def test_hang_with_untouched_base_is_diagnosed(tmp_path):
     ответа в диалоге авторизации, невидимом для скрытого процесса.
     """
     б = база(tmp_path)
-    тихий = заглушка(tmp_path, "ping -n 31 127.0.0.1 >nul\r\n")
+    тихий = заглушка(tmp_path, "молчит и не завершается")
     команда = ('%s DESIGNER /F "%s" /N Admin /P"" /LoadCfg a.cf '
                '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt'
                % (тихий, б))
@@ -75,7 +95,7 @@ def test_unchanged_base_after_success_is_named(tmp_path):
     операция не прошла. Не искать причину в логах, проверить вход».
     """
     б = база(tmp_path)
-    пустышка = заглушка(tmp_path, "exit /b 0\r\n")
+    пустышка = заглушка(tmp_path, "сразу выходит")
     команда = ('%s DESIGNER /F "%s" /N Admin /P"" /LoadCfg a.cf '
                '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt'
                % (пустышка, б))
@@ -92,7 +112,7 @@ def test_quoted_path_with_spaces_reaches_the_program(tmp_path):
     кавычек в PowerShell (tools/native-arg.ps1).
     """
     б = база(tmp_path / "1C bases")
-    эхо = заглушка(tmp_path, "echo %3\r\n")
+    эхо = заглушка(tmp_path, "печатает третий аргумент")
     команда = ('%s DESIGNER /F "%s" /N Admin /P"" /LoadCfg a.cf '
                '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt'
                % (эхо, б))
@@ -115,7 +135,7 @@ def test_hang_is_reported_early_not_only_at_timeout(tmp_path, capsys):
     недостижима. Взято в работу 24.09.2026 из отложенных.
     """
     б = база(tmp_path)
-    тихий = заглушка(tmp_path, "ping -n 31 127.0.0.1 >nul\r\n")
+    тихий = заглушка(tmp_path, "молчит и не завершается")
     команда = ('%s DESIGNER /F "%s" /N Admin /P"" /LoadCfg a.cf '
                '/UpdateDBCfg -Dynamic- /DisableStartupDialogs /Out log.txt'
                % (тихий, б))
@@ -124,3 +144,50 @@ def test_hang_is_reported_early_not_only_at_timeout(tmp_path, capsys):
     напечатано = capsys.readouterr().out
     assert "модальный диалог" in напечатано, (
         "диагноз не напечатан до конца ожидания: %r" % напечатано)
+
+
+# --- Форма со списком аргументов (25.09.2026) ---
+# Живой прогон: модель передала команду одной строкой из PowerShell, тот съел
+# внутренние кавычки, и argparse увидел десяток позиционных аргументов вместо
+# одного. Дважды получив usage, модель написала свой запускатель. Причина —
+# не в кавычках, а в интерфейсе: строку с кавычками внутри ни одна оболочка
+# не сохраняет одинаково, а ОТДЕЛЬНЫЙ аргумент умеет закавычить каждая.
+
+
+def test_command_as_argument_list_after_dash_dash(tmp_path):
+    """Команда после `--` принимается списком: разбора строки нет вовсе."""
+    б = база(tmp_path)
+    пустышка = заглушка(tmp_path, "сразу выходит")
+    код = mod.main(["--ответ", "база-одноразовая", "--",
+                    str(пустышка), "DESIGNER", "/F", str(б), "/N", "Admin",
+                    "/P", "", "/LoadCfg", "a.cf", "/UpdateDBCfg", "-Dynamic-",
+                    "/DisableStartupDialogs", "/Out", "log.txt"])
+    assert код == 0
+
+
+def test_argument_list_survives_a_space_in_the_program_path(tmp_path):
+    """Пробел в пути к программе больше не ломает вызов.
+
+    Это ровно то, на чём встал живой прогон: «C:\Program Files\...» после
+    съеденных кавычек разорвалось на два аргумента. В форме со списком
+    оболочка закавычивает каждый аргумент отдельно, и это умеют все.
+    """
+    каталог = tmp_path / "Program Files"
+    каталог.mkdir()
+    б = база(tmp_path)
+    пустышка = заглушка(каталог, "сразу выходит")
+    код = mod.main(["--ответ", "база-одноразовая", "--",
+                    str(пустышка), "DESIGNER", "/F", str(б), "/N", "Admin",
+                    "/P", "", "/DumpCfg", "out.cf",
+                    "/DisableStartupDialogs", "/Out", "log.txt"])
+    assert код == 0
+
+
+def test_string_form_still_works(tmp_path):
+    """Старая форма одной строкой не сломана: на неё опираются примеры."""
+    б = база(tmp_path)
+    пустышка = заглушка(tmp_path, "сразу выходит")
+    команда = ('%s DESIGNER /F "%s" /N Admin /P"" /DumpCfg out.cf '
+               '/DisableStartupDialogs /Out log.txt' % (пустышка, б))
+    код, _ = mod.запустить(команда, ответы={"база-одноразовая"}, таймаут=30)
+    assert код == 0

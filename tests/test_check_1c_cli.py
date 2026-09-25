@@ -917,3 +917,23 @@ def test_answer_inside_the_command_string_is_understood():
     assert из_строки[0] == {"база-одноразовая"}
     assert "--ответ" not in из_строки[1]
     assert из_строки[1].startswith("1cv8 DESIGNER")
+
+
+def test_check_accepts_an_argument_list(tmp_path):
+    """check() принимает список аргументов, а не только строку.
+
+    Склейка списка в строку воссоздаёт ту самую двусмысленность, ради
+    устранения которой список и заводился: «C:\Program Files\…\1cv8.exe»
+    после склейки снова распадается по пробелу, args[0] становится
+    «C:\Program», и проверяльщик отвечает K017 «вне компетенции» — то есть
+    молча не проверяет ничего. Поймано живой проверкой 25.09.2026.
+    """
+    б = _база(tmp_path)
+    аргументы = [str(tmp_path / "Program Files" / "1cv8.exe"), "DESIGNER",
+                 "/F", str(б), "/N", "Admin", "/P", "",
+                 "/DumpCfg", "out.cf", "/DisableStartupDialogs",
+                 "/Out", "log.txt"]
+    (tmp_path / "Program Files").mkdir()
+    беды, замечания = mod.check(аргументы, CATALOG)
+    assert not any("K017" in n for n in замечания), замечания
+    assert not беды, беды
