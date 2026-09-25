@@ -157,16 +157,166 @@ def _отпечаток(база):
     return (с.st_mtime, с.st_size)
 
 
-def _диагноз(база, было, вывод):
-    стало = _отпечаток(база)
-    if not вывод and было is not None and было == стало:
-        return ("[диагноз] процесс не завершился, вывод пуст, 1Cv8.1CD не менялся. "
-                "Это не медленная операция: платформа показывает модальный диалог "
-                "авторизации, до которого пакетный процесс не дотягивается. "
-                "Не ждать дольше — добавить /N и /P либо запустить вручную.")
-    return ("[диагноз] истекло время ожидания, но признаков модального диалога нет: "
-            "либо был вывод, либо файл базы менялся. Операция шла — "
-            "увеличить --таймаут или проверить журнал /Out.")
+def _потомки_windows(корень):
+    """pid процесса и всех его потомков — снимком списка процессов Windows."""
+    import ctypes
+    from ctypes import wintypes
+
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                    ("th32ProcessID", wintypes.DWORD),
+                    ("th32DefaultHeapID", ctypes.c_size_t),
+                    ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                    ("th32ParentProcessID", wintypes.DWORD),
+                    ("pcPriClassBase", ctypes.c_long), ("dwFlags", wintypes.DWORD),
+                    ("szExeFile", ctypes.c_wchar * 260)]
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    k32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+    k32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(PROCESSENTRY32W)]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    снимок = k32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if not снимок or снимок == ctypes.c_void_p(-1).value:
+        return [корень]
+    родитель = {}
+    try:
+        з = PROCESSENTRY32W()
+        з.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+        ок = k32.Process32FirstW(снимок, ctypes.byref(з))
+        while ок:
+            родитель[з.th32ProcessID] = з.th32ParentProcessID
+            ок = k32.Process32NextW(снимок, ctypes.byref(з))
+    finally:
+        k32.CloseHandle(снимок)
+    return _замкнуть(корень, родитель)
+
+
+def _потомки_linux(корень):
+    родитель = {}
+    for имя in os.listdir("/proc"):
+        if not имя.isdigit():
+            continue
+        try:
+            with open("/proc/%s/stat" % имя, "rb") as ф:
+                поля = ф.read().rsplit(b")", 1)[1].split()
+            родитель[int(имя)] = int(поля[1])
+        except (OSError, IndexError, ValueError):
+            continue
+    return _замкнуть(корень, родитель)
+
+
+def _замкнуть(корень, родитель):
+    """Корень и все, чей предок по цепочке — корень. Корень идёт первым."""
+    свои = [корень]
+    прирост = True
+    while прирост:
+        прирост = False
+        for pid, ppid in родитель.items():
+            if ppid in свои and pid not in свои and pid != ppid:
+                свои.append(pid)
+                прирост = True
+    return свои
+
+
+def _время_одного_windows(pid):
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    h = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return None
+    try:
+        c, e, ядро, польз = (wintypes.FILETIME() for _ in range(4))
+        if not k32.GetProcessTimes(wintypes.HANDLE(h), ctypes.byref(c), ctypes.byref(e),
+                                   ctypes.byref(ядро), ctypes.byref(польз)):
+            return None
+
+        def сек(ft):
+            return ((ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 1e7
+        return сек(ядро) + сек(польз)
+    finally:
+        k32.CloseHandle(h)
+
+
+def _время_одного_linux(pid):
+    try:
+        with open("/proc/%d/stat" % pid, "rb") as ф:
+            поля = ф.read().rsplit(b")", 1)[1].split()
+        return (int(поля[11]) + int(поля[12])) / os.sysconf("SC_CLK_TCK")
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def _процессорное_время(pid):
+    """Суммарное процессорное время процесса и его потомков, в секундах.
+
+    None — в этой ОС снять не умеем (не Windows и не Linux) либо процесса
+    уже нет. Потомки считаются потому, что на Linux платформу нередко
+    запускают через сценарий-обёртку, и тогда работу делает не сам pid.
+
+    Только стандартная библиотека: набор не тянет зависимостей, а psutil
+    на машине агента может и не стоять.
+    """
+    try:
+        if os.name == "nt":
+            pids, одно = _потомки_windows(pid), _время_одного_windows
+        elif sys.platform.startswith("linux"):
+            pids, одно = _потомки_linux(pid), _время_одного_linux
+        else:
+            return None
+        замеры = [одно(p) for p in pids]
+        if замеры[0] is None:
+            return None
+        return sum(з for з in замеры if з is not None)
+    except Exception:
+        # Измерение — подсказка, а не условие запуска: сбой в нём
+        # не должен ронять саму операцию над базой.
+        return None
+
+
+# Меньше этого за интервал наблюдения — процесс ждёт, а не работает.
+# Спящий процесс набирает сотые доли секунды; живая /DumpConfigToFiles
+# набирала от 1,5 до 8 с процессорного времени за 10 с (замер 25.09.2026).
+ПОРОГ_РАБОТЫ = 0.5
+
+
+def _диагноз(прирост, интервал, окончательно):
+    """Текст диагноза по приросту процессорного времени за интервал.
+
+    Прежний признак — «вывод пуст и 1Cv8.1CD не менялся» — ложен для
+    любой долгой операции и опровергнут запуском 25.09.2026: выгрузка
+    шла (74 с процессорного времени, 4000 файлов), а обёртка печатала
+    «модальный диалог… Не ждать дольше», и по этой подсказке агент убил
+    загрузку конфигурации на третьей минуте. /Out платформа пишет в конце,
+    а время правки открытого на запись файла Windows обновляет не сразу —
+    оба признака молчат у работающего процесса точно так же, как у висящего.
+    """
+    if прирост is None:
+        return ("[наблюдение] процесс жив и молчит %d с. Отличить работу от "
+                "ожидания в этой ОС прибор не умеет. Не прерывать раньше "
+                "--таймаут; занятость процессора смотреть средствами ОС."
+                % интервал)
+    if прирост >= ПОРОГ_РАБОТЫ:
+        if окончательно:
+            return ("[диагноз] истекло время ожидания, а процесс РАБОТАЛ: +%.1f с "
+                    "процессорного времени за последние %d с. Это не зависание, "
+                    "операции просто не хватило времени — повторить с большим "
+                    "--таймаут. Загрузка XML-выгрузки в десятки гигабайт идёт "
+                    "десятки минут." % (прирост, интервал))
+        return ("[идёт работа] процесс работает: +%.1f с процессорного времени "
+                "за %d с. Молчание — норма: /Out платформа пишет в конце. "
+                "Это не зависание, не прерывать." % (прирост, интервал))
+    return ("[диагноз] процесс жив, но процессор не занят: +%.2f с за %d с. "
+            "Он ждёт, а не работает. Частая причина — модальный диалог "
+            "(вход, вопрос платформы), до которого пакетный процесс не "
+            "дотягивается; без /DisableStartupDialogs это вероятнее всего. "
+            "Проверить вход (/N, /P) и что базу не держит другой сеанс."
+            % (прирост, интервал))
 
 
 def запустить(команда, ответы=frozenset(), таймаут=3600, порог_подозрения=45,
@@ -220,25 +370,33 @@ def запустить(команда, ответы=frozenset(), таймаут=
     процесс = subprocess.Popen(аргументы,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
-    # Диагноз печатается сразу, как только признаки сошлись, а не в конце
-    # ожидания: до конца обёртка может не дожить. Печать — не в отчёт,
-    # а прямо в поток, с немедленным сбросом.
-    сказано = False
+    # Наблюдение печатается на каждом интервале, а не в конце ожидания:
+    # до конца обёртка может не дожить — инструмент агента убивает её
+    # по своему таймауту. Печать — прямо в поток, с немедленным сбросом.
     вывод = b""
+    прежнее = _процессорное_время(процесс.pid)
+    отметка = time.time()
     while True:
         осталось = таймаут - (time.time() - начало)
         if осталось <= 0:
+            сейчас = _процессорное_время(процесс.pid)
+            прирост = (сейчас - прежнее
+                       if сейчас is not None and прежнее is not None else None)
             процесс.kill()
             вывод, _ = процесс.communicate()
-            строки.append(_диагноз(база, было, вывод))
+            строки.append(_диагноз(прирост, time.time() - отметка, True))
             return 3, "\n".join(строки)
         try:
             вывод, _ = процесс.communicate(timeout=min(порог_подозрения, осталось))
             break
         except subprocess.TimeoutExpired:
-            if not сказано and _отпечаток(база) == было:
-                print(_диагноз(база, было, b""), flush=True)
-                сказано = True
+            сейчас = _процессорное_время(процесс.pid)
+            прирост = (сейчас - прежнее
+                       if сейчас is not None and прежнее is not None else None)
+            if таймаут - (time.time() - начало) > 0:
+                print(_диагноз(прирост, time.time() - отметка, False), flush=True)
+                if сейчас is not None:
+                    прежнее, отметка = сейчас, time.time()
 
     код = процесс.returncode
     строки.append("время: %.1f с, код возврата: %d" % (time.time() - начало, код))
