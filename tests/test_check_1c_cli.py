@@ -875,7 +875,7 @@ def test_auth_message_does_not_claim_more_than_it_checks(tmp_path):
 
 
 def test_quoted_value_after_key_is_one_argument():
-    """C3: /P"пароль с пробелом" — один аргумент, а не три.
+    r"""C3: /P"пароль с пробелом" — один аргумент, а не три.
 
     Регулярка отделяла кавычки только у токена, который С НИХ начинается;
     для /P"…" первым срабатывал \S+, и значение рвалось по пробелам.
@@ -920,7 +920,7 @@ def test_answer_inside_the_command_string_is_understood():
 
 
 def test_check_accepts_an_argument_list(tmp_path):
-    """check() принимает список аргументов, а не только строку.
+    r"""check() принимает список аргументов, а не только строку.
 
     Склейка списка в строку воссоздаёт ту самую двусмысленность, ради
     устранения которой список и заводился: «C:\Program Files\…\1cv8.exe»
@@ -937,3 +937,51 @@ def test_check_accepts_an_argument_list(tmp_path):
     беды, замечания = mod.check(аргументы, CATALOG)
     assert not any("K017" in n for n in замечания), замечания
     assert not беды, беды
+
+
+# --- Значение ключа, съеденное оболочкой (25.09.2026, третий живой прогон) ---
+# PowerShell 5.1 молча выбрасывает пустой аргумент при вызове нативной
+# программы. Команда с «/P ""» доезжает до программы как «/P» вплотную
+# к следующему ключу, и платформа берёт этот ключ за пароль. Проверено
+# запуском на живой базе: вместо загрузки — «Неопределена информационная
+# база», код 1, 1.1 с. Модель повторила запуск восемь раз: ни обёртка,
+# ни проверяльщик не возразили ни разу.
+
+
+def test_key_whose_value_is_another_key_is_refused():
+    """Значением ключа стал другой ключ — значит значение потеряно."""
+    проблемы = problems(
+        ["1cv8.exe", "DESIGNER", "/F", "d:/base", "/N", "Админ", "/P",
+         "/LoadConfigFromFiles", "d:/src", "/DisableStartupDialogs"])
+    assert any("K022" in b for b in проблемы), проблемы
+    assert any("/P" in b and "/LoadConfigFromFiles" in b for b in проблемы), проблемы
+
+
+def test_key_at_the_very_end_without_its_value_is_refused():
+    """Ключ последним, без значения, — та же потеря, просто с краю."""
+    проблемы = problems(
+        ["1cv8.exe", "DESIGNER", "/F", "d:/base", "/DisableStartupDialogs", "/Out"])
+    assert any("K022" in b for b in проблемы), проблемы
+
+
+def test_glued_value_is_not_reported_as_lost():
+    """Слитное значение — это значение: /Nадмин не про потерю."""
+    проблемы = problems(
+        ["1cv8.exe", "DESIGNER", "/Fd:/base", "/NАдмин", "/DisableStartupDialogs"])
+    assert not any("K022" in b for b in проблемы), проблемы
+
+
+def test_key_with_optional_value_is_not_reported_as_lost():
+    """У /UpdateDBCfg всё значение необязательное — за ним законно ключ."""
+    проблемы = problems(
+        ["1cv8.exe", "DESIGNER", "/F", "d:/base", "/UpdateDBCfg",
+         "/DisableStartupDialogs", "/Out", "log.txt"])
+    assert not any("K022" in b for b in проблемы), проблемы
+
+
+def test_option_after_a_valueless_key_is_not_a_lost_value():
+    """Опция -Dynamic- следом за ключом — не потерянное значение."""
+    проблемы = problems(
+        ["1cv8.exe", "DESIGNER", "/F", "d:/base", "/UpdateDBCfg", "-Dynamic-",
+         "/DisableStartupDialogs", "/Out", "log.txt"])
+    assert not any("K022" in b for b in проблемы), проблемы

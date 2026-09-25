@@ -166,7 +166,7 @@ def test_command_as_argument_list_after_dash_dash(tmp_path):
 
 
 def test_argument_list_survives_a_space_in_the_program_path(tmp_path):
-    """Пробел в пути к программе больше не ломает вызов.
+    r"""Пробел в пути к программе больше не ломает вызов.
 
     Это ровно то, на чём встал живой прогон: «C:\Program Files\...» после
     съеденных кавычек разорвалось на два аргумента. В форме со списком
@@ -229,3 +229,103 @@ def test_path_with_space_survives_as_its_own_element():
     """Путь с пробелом отдельным элементом не трогаем: он уже целый."""
     дано = ['1cv8.exe', '/F', 'D:/1C base/trade', '/DumpCfg', 'a.cf']
     assert mod._подготовить_аргументы(дано) == дано
+
+
+# --- Пустой пароль без пустого аргумента (25.09.2026, третий живой прогон) ---
+# PowerShell 5.1 молча выбрасывает пустой аргумент при вызове нативной
+# программы: «/P ""» доезжает как голый «/P», и платформа берёт за пароль
+# следующий ключ. Проверено печатью sys.argv и запуском на живой базе.
+# Значит форма, которой учила ПОДСКАЗКА, в этой оболочке невыразима вовсе,
+# и нужна такая, где пустого аргумента нет ни на одном участке пути.
+
+
+def test_empty_password_flag_adds_the_pair_itself(tmp_path):
+    """--пустой-пароль дорисовывает /P и пустую строку уже внутри Python."""
+    б = база(tmp_path)
+    пустышка = заглушка(tmp_path, "сразу выходит")
+    код = mod.main(["--ответ", "база-одноразовая", "--пустой-пароль", "--",
+                    str(пустышка), "DESIGNER", "/F", str(б), "/N", "Admin",
+                    "/DumpCfg", "out.cf", "/DisableStartupDialogs",
+                    "/Out", "log.txt"])
+    assert код == 0
+
+
+def test_empty_password_flag_survives_a_shell_that_drops_empty_arguments():
+    """Флаг без значения не может быть съеден: съедать нечего."""
+    аргументы = mod._дописать_пустой_пароль(
+        ["1cv8.exe", "DESIGNER", "/F", "d:/base", "/N", "Админ",
+         "/DisableStartupDialogs"])
+    assert аргументы[-2:] == ["/P", ""]
+
+
+def test_empty_password_flag_is_not_added_twice():
+    """Если /P уже задан, второй паре взяться неоткуда."""
+    дано = ["1cv8.exe", "DESIGNER", "/F", "d:/base", "/N", "Админ", "/P", "тайна"]
+    assert mod._дописать_пустой_пароль(дано) == дано
+
+
+def test_hint_teaches_the_flag_not_the_broken_pair():
+    """ПОДСКАЗКА больше не учит форме, невыразимой в PowerShell 5.1."""
+    assert "--пустой-пароль" in mod.ПОДСКАЗКА
+    assert '/P ""' not in mod.ПОДСКАЗКА
+
+
+# --- Замер через настоящую оболочку ---
+# Все тесты выше зовут main([...]) списком Python, и оболочки в популяции
+# замера нет. Именно поэтому потеря пустого аргумента прошла мимо 600
+# зелёных тестов. Здесь команда идёт тем же путём, что у агента:
+# PowerShell 5.1 → python → обёртка.
+
+import shutil
+import subprocess as _sp
+
+import pytest
+
+_PS = shutil.which("powershell")
+
+
+def _через_powershell(tmp_path, хвост):
+    """Команда пишется в .ps1 и запускается через -File.
+
+    Не через -Command: тогда строка команды сама проходит разбор
+    командной строки powershell.exe, и кавычки переделываются ещё
+    до того, как их увидит интерпретатор. Первая редакция теста шла
+    через -Command и проверяла не то место — пустая пара доезжала
+    непустой. Файл пишется с BOM: без него PowerShell 5.1 читает
+    кириллицу в .ps1 как ANSI и падает в чужом месте.
+    """
+    б = база(tmp_path)
+    # Имя «1cv8», а не «подставной-1cv8»: проверяльщик опознаёт платформу
+    # по имени файла, и под чужим именем отвечает K017 «вне компетенции»,
+    # не проверяя ничего. Первый прогон теста на этом и прошёл мимо.
+    пустышка = заглушка(tmp_path, "сразу выходит", имя="1cv8")
+    сценарий = tmp_path / "zapusk.ps1"
+    сценарий.write_text(
+        "& '%s' '%s' --ответ база-одноразовая %s -- '%s' DESIGNER /F '%s' "
+        "/N Admin %s /DumpCfg out.cf /DisableStartupDialogs /Out log.txt\r\n"
+        "exit $LASTEXITCODE\r\n"
+        % (sys.executable, SCRIPT, хвост[0], пустышка, б, хвост[1]),
+        encoding="utf-8-sig")
+    return _sp.run([_PS, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-File", str(сценарий)],
+                   capture_output=True, timeout=120,
+                   env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+
+
+@pytest.mark.skipif(_PS is None, reason="нет Windows PowerShell")
+def test_empty_pair_through_powershell_is_refused_not_launched(tmp_path):
+    """/P "" через PowerShell 5.1 теряет пустую строку — обёртка обязана
+    отказать кодом 2, а не запустить платформу с чужим ключом в пароле."""
+    р = _через_powershell(tmp_path, ("", '/P ""'))
+    вывод = р.stdout.decode("utf-8", errors="replace")
+    assert р.returncode == 2, вывод
+    assert "K022" in вывод, вывод
+
+
+@pytest.mark.skipif(_PS is None, reason="нет Windows PowerShell")
+def test_empty_password_flag_through_powershell_launches(tmp_path):
+    """Флаг --пустой-пароль переживает PowerShell 5.1: запуск состоялся."""
+    р = _через_powershell(tmp_path, ("--пустой-пароль", ""))
+    вывод = р.stdout.decode("utf-8", errors="replace")
+    assert р.returncode == 0, вывод
+    assert "K022" not in вывод, вывод
