@@ -31,3 +31,22 @@ def test_reference_starts_with_utf8_bom(путь):
     assert путь.read_bytes().startswith(b"\xef\xbb\xbf"), (
         "%s без BOM: PowerShell 5.1 прочтёт его как cp1251. Добавить: "
         "python tools/add-bom-to-references.py" % путь.relative_to(ROOT))
+
+
+НАВЫКИ = sorted(ROOT.glob("skills/*/SKILL.md"))
+
+
+@pytest.mark.parametrize("путь", НАВЫКИ, ids=lambda п: п.parent.name)
+def test_skill_md_has_no_bom(путь):
+    """SKILL.md — без BOM, и это проверено запуском, а не осторожность.
+
+    Живая проверка 28.09.2026, пробный навык с BOM и контрольный без него
+    в трёх средах. Claude Code и Kilo показали оба с верным описанием.
+    Codex 0.156.1 отказал: «failed to load skill …\zz-probe-bom\SKILL.md:
+    missing YAML frontmatter delimited by ---» — и в каталоге модели
+    остался только контрольный. BOM в SKILL.md молча убрал бы навык
+    из Codex. Свидетельство: docs/evidence/2026-09-28-skill-md-bom.md.
+    """
+    assert not путь.read_bytes().startswith(b"\xef\xbb\xbf"), (
+        "%s начинается с BOM: Codex не опознает YAML-шапку и не загрузит "
+        "навык" % путь.relative_to(ROOT))
