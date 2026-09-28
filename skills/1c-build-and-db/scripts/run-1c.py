@@ -365,6 +365,20 @@ def запустить(команда, ответы=frozenset(), таймаут=
         # её приходится здесь.
         аргументы = _подготовить_аргументы(м.split_args(команда))
     база = м.файловая_база(аргументы, каталог["ключи"])
+    занята = _занять_базу(база, таймаут)
+    if занята:
+        строки.append(занята)
+        строки.append("запуск не выполнялся: база занята другим запуском обёртки")
+        return 2, "\n".join(строки)
+    try:
+        return _исполнить(аргументы, база, строки, таймаут, порог_подозрения,
+                          каталог["ключи"])
+    finally:
+        _освободить_базу(база)
+
+
+def _исполнить(аргументы, база, строки, таймаут, порог_подозрения, ключи):
+    """Запуск, ожидание и отчёт — всё, что происходит под замком базы."""
     было = _отпечаток(база)
     начало = time.time()
     процесс = subprocess.Popen(аргументы,
@@ -404,11 +418,134 @@ def запустить(команда, ответы=frozenset(), таймаут=
     if было is not None and было == стало:
         строки.append(
             "[внимание] 1Cv8.1CD не изменился. Если операция должна была "
-            "менять базу — она не прошла, и причину надо искать во входе "
-            "(команда, аутентификация, формат файлов), а не в журнале.")
+            "менять базу — она не прошла.")
     if вывод:
         строки.append(вывод.decode("utf-8", errors="replace").strip())
+    if код != 0:
+        журнал = _хвост_журнала(аргументы, ключи)
+        if журнал:
+            строки.append(журнал)
     return код, "\n".join(строки)
+
+
+def _значение_ключа(аргументы, имя, ключи):
+    """Значение ключа платформы из списка аргументов — отдельное или слитное."""
+    м = _проверяльщик()
+    for i, а in enumerate(аргументы):
+        if not а.startswith("/"):
+            continue
+        if м.known_key(а.split(":", 1)[0], ключи) != имя:
+            continue
+        if len(а) > len(имя):
+            return а[len(имя):]
+        if i + 1 < len(аргументы):
+            return аргументы[i + 1]
+    return None
+
+
+def _хвост_журнала(аргументы, ключи, строк=25):
+    """Последние строки файла /Out — там платформа пишет настоящую причину.
+
+    Живой прогон 28.09.2026: загрузка упала на «Ошибка СУБД: Длина ключа
+    индекса превышает максимально допустимую», а обёртка сообщила только
+    код 1 и «1Cv8.1CD не изменился — ищи во входе». Агент искал во входе.
+    """
+    путь = _значение_ключа(аргументы, "/Out", ключи)
+    if not путь or not os.path.isfile(путь):
+        return None
+    try:
+        with open(путь, "rb") as ф:
+            текст = ф.read().decode("utf-8-sig", errors="replace")
+    except OSError:
+        return None
+    строки = [с for с in текст.splitlines() if с.strip()]
+    if not строки:
+        return "[журнал платформы %s пуст]" % путь
+    показано = строки[-строк:]
+    шапка = "[журнал платформы %s: последние %d из %d строк]" % (
+        путь, len(показано), len(строки))
+    return "\n".join([шапка] + показано)
+
+
+def _замок_базы(база):
+    """Файл замка для базы: один на каталог базы, во временном каталоге ОС."""
+    import hashlib
+    import tempfile
+    ключ = os.path.normcase(os.path.abspath(база)).encode("utf-8")
+    return (Path(tempfile.gettempdir()) / "run-1c-locks"
+            / (hashlib.sha1(ключ).hexdigest() + ".lock"))
+
+
+def _жив(pid):
+    """Жив ли процесс. На Windows без os.kill: там он убивает, а не проверяет."""
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        h = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            код = wintypes.DWORD()
+            if not k32.GetExitCodeProcess(wintypes.HANDLE(h), ctypes.byref(код)):
+                return False
+            return код.value == 259  # STILL_ACTIVE
+        finally:
+            k32.CloseHandle(h)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _занять_базу(база, таймаут):
+    """None — база занята нами; иначе текст отказа.
+
+    Живой прогон в Codex 28.09.2026: агент одним пакетом отправил две
+    одинаковые загрузки. Вторая удалила журнал и файл результата первой,
+    упала за 1,3 с на занятой базе и записала туда «1» — а первая тем
+    временем честно работала ещё 15 минут. Агент прочёл чужую «1» как
+    провал. Замок не заменяет блокировку платформы, он не даёт второму
+    запуску обёртки дойти до неё и испортить файлы первого.
+
+    Замок считается мёртвым, если процесса-владельца нет или истёк его
+    срок (начало + таймаут): pid может достаться другому процессу.
+    """
+    if not база:
+        return None
+    замок = _замок_базы(база)
+    замок.parent.mkdir(parents=True, exist_ok=True)
+    if замок.exists():
+        try:
+            pid_текст, срок_текст = замок.read_text(encoding="utf-8").split()[:2]
+            pid, срок = int(pid_текст), float(срок_текст)
+        except (OSError, ValueError):
+            pid, срок = None, 0.0
+        if pid and pid != os.getpid() and _жив(pid) and time.time() < срок:
+            return ("[ошибка] базу %s уже обрабатывает другой запуск этой обёртки "
+                    "(PID %d, освободит не позже %s). Второй запуск затёр бы его "
+                    "журнал /Out и файл /DumpResult и получил бы отказ платформы "
+                    "на занятой базе. Дождись первого: он печатает [идёт работа], "
+                    "пока жив." % (база, pid, time.strftime("%H:%M", time.localtime(срок))))
+    замок.write_text("%d %f" % (os.getpid(), time.time() + таймаут + 60), encoding="utf-8")
+    return None
+
+
+def _освободить_базу(база):
+    if not база:
+        return
+    замок = _замок_базы(база)
+    try:
+        if замок.read_text(encoding="utf-8").split()[0] == str(os.getpid()):
+            замок.unlink()
+    except (OSError, IndexError):
+        pass
 
 
 ПОДСКАЗКА = """
