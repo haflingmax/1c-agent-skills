@@ -1,4 +1,4 @@
-# Стандартный интерфейс OData
+﻿# Стандартный интерфейс OData
 
 **Ищут по словам:** OData, `standard.odata`, `$filter`, `$top`, `$skip`,
 `$select`, `$expand`, `allowedOnly`, префикс имени ресурса, `RowType`,
