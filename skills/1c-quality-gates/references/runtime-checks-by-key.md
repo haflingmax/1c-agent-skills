@@ -1,4 +1,4 @@
-# Проверки, которые платформа делает только по ключу запуска
+﻿# Проверки, которые платформа делает только по ключу запуска
 
 **Ищут по словам:** `/EnableCheckModal`,
 `/EnableCheckExtensionsAndAddInsSyncCalls`, `/EnableCheckServerCalls`, строгая

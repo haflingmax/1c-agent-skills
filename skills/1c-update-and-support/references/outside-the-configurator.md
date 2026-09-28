@@ -1,4 +1,4 @@
-# Обновление и поддержка снаружи конфигуратора
+﻿# Обновление и поддержка снаружи конфигуратора
 
 **Ищут по словам:** `/UpdateCfg`, `/MergeCfg`, `/CompareCfg`,
 `/ManageCfgSupport`, `-Settings`, `-EnableSupport`, `-DisableSupport`,

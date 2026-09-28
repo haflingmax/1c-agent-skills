@@ -33,6 +33,8 @@ WRITES_INTO_SKILLS = {
         "пересобирает skills/1c-build-and-db/scripts/cli-keys.json",
     "measure-trigger.ps1":
         "переписывает description в skills/developing-1c-configurations/SKILL.md",
+    "add-bom-to-references.py":
+        "ставит BOM в начало skills/*/references/*.md",
 }
 
 # В skills/ не пишут. Причина названа поимённо, а не подразумевается.
