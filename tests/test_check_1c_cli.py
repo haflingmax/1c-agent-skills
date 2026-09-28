@@ -1014,3 +1014,46 @@ def test_balanced_quotes_are_not_refused():
     out = problems('1cv8 DESIGNER /F "d:/1C base" /N Админ /P"" /DumpCfg d:/x.cf '
                    '/DisableStartupDialogs /Out d:/o.txt')
     assert not any("K023" in b for b in out), out
+
+
+# --- Команда списком после -- (28.09.2026, пятый живой прогон) ---
+# Агент подал проверяльщику команду в той форме, которой учит обёртка:
+# «check-1c-cli.py --ответ копия-сделана -- <программа> DESIGNER …».
+# main() склеивал argv в строку, «--» становился именем программы,
+# и ответ был «[внимание K017] -- вне компетенции» с кодом 0 — ничего
+# не проверено, а выглядит как пройденная проверка.
+
+
+def _код_и_вывод(*argv):
+    р = subprocess.run([sys.executable, str(SCRIPT)] + list(argv),
+                       capture_output=True, env=dict(__import__("os").environ,
+                                                     PYTHONIOENCODING="utf-8"))
+    return р.returncode, р.stdout.decode("utf-8", errors="replace")
+
+
+def test_command_after_dash_dash_is_checked_not_skipped():
+    """После -- стоит команда, а не имя программы «--»."""
+    код, вывод = _код_и_вывод("--", "1cv8", "CONFIG", "/F", "d:/base", "/LoadCfg", "a.cf")
+    assert "K017" not in вывод, вывод
+    assert "K002" in вывод, вывод
+    assert код == 1, вывод
+
+
+def test_answers_before_dash_dash_are_understood():
+    """--ответ до -- принимается, как у обёртки run-1c.py."""
+    код, вывод = _код_и_вывод("--ответ", "база-одноразовая", "--",
+                              "1cv8", "DESIGNER", "/F", "d:/base", "/N", "Admin",
+                              "/DumpCfg", "a.cf", "/DisableStartupDialogs",
+                              "/Out", "log.txt")
+    assert "K017" not in вывод, вывод
+    assert "K021" not in вывод, вывод
+
+
+def test_path_with_space_after_dash_dash_stays_whole():
+    """Список после -- не склеивается в строку: путь с пробелом цел."""
+    код, вывод = _код_и_вывод("--", "C:/Program Files/1cv8/bin/1cv8.exe",
+                              "DESIGNER", "/F", "d:/base", "/N", "Admin",
+                              "/DumpCfg", "a.cf", "/DisableStartupDialogs",
+                              "/Out", "log.txt")
+    assert "K017" not in вывод, вывод
+    assert код == 0, вывод

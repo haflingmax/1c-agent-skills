@@ -770,6 +770,21 @@ def main():
         # вместо помощи.
         print(__doc__.strip())
         return 0
+    if "--" in argv:
+        # Форма со списком — та же, что у обёртки run-1c.py: всё до «--»
+        # — ответы, всё после — команда, по аргументу на элемент. Склеивать
+        # её в строку нельзя: «--» становился именем программы, и прибор
+        # отвечал «K017 -- вне компетенции» с кодом 0, не проверив ничего.
+        # Живой прогон в Codex 28.09.2026 — ровно так.
+        до, после = argv[:argv.index("--")], argv[argv.index("--") + 1:]
+        ответы, лишнее = вынуть_ответы(" ".join(до))
+        if лишнее.strip():
+            print("до -- допустимы только ответы (--ответ …), а стоит: %s" % лишнее)
+            return 2
+        if not после:
+            print(__doc__.strip().splitlines()[0])
+            return 2
+        return _напечатать(check(после, load_catalog(), ответы))
     ответы, line = вынуть_ответы(" ".join(argv).strip())
     if not line:
         ответы_из_потока, line = вынуть_ответы(sys.stdin.read().strip())
@@ -778,8 +793,11 @@ def main():
         print(__doc__.strip().splitlines()[0])
         return 2
 
-    problems, notes = check(line, load_catalog(), ответы)
+    return _напечатать(check(line, load_catalog(), ответы))
 
+
+def _напечатать(итог):
+    problems, notes = итог
     for p in problems:
         print(format_diag("ошибка", p))
     for n in notes:

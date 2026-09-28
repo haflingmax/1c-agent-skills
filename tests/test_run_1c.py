@@ -388,3 +388,83 @@ def test_cpu_time_of_a_running_process_is_measurable():
         п.kill(); п.wait()
     if os.name == "nt" or sys.platform.startswith("linux"):
         assert снято is not None and снято > 0.3, снято
+
+
+# --- Второй запуск на ту же базу и причина отказа (28.09.2026) ---
+# Живой прогон в Codex: агент одним пакетом отправил две одинаковые
+# загрузки. Первая работала 15 минут; вторая удалила её журнал и файл
+# результата, упала за 1,3 с и записала туда «1». Агент прочёл эту «1»
+# как провал загрузки. А когда платформа отказывает сама, обёртка
+# говорила «1Cv8.1CD не изменился — ищи во входе», не показывая, что
+# платформа написала в /Out: там была настоящая причина.
+
+
+def _пишет_журнал_и_падает(текст):
+    """Команда, которая пишет текст в файл после /Out и выходит с кодом 1."""
+    return [sys.executable, "-c",
+            "import sys\na=sys.argv\nopen(a[a.index('/Out')+1],'w',encoding='utf-8')"
+            ".write(%r)\nsys.exit(1)" % текст]
+
+
+def test_platform_log_is_shown_when_the_platform_fails(tmp_path):
+    """Отказ платформы виден в отчёте, а не только в файле /Out."""
+    б = база(tmp_path)
+    журнал = tmp_path / "log.txt"
+    команда = _пишет_журнал_и_падает("строка раз\nОшибка СУБД:\nДлина ключа индекса") + [
+        "DESIGNER", "/F", str(б), "/N", "Admin", "/DumpCfg", "a.cf",
+        "/DisableStartupDialogs", "/Out", str(журнал)]
+    код, отчёт = mod.запустить(команда, ответы={"база-одноразовая"}, таймаут=30)
+    assert код == 1, отчёт
+    assert "Длина ключа индекса" in отчёт, отчёт
+
+
+def test_second_run_on_the_same_base_is_refused_while_the_first_lives(tmp_path):
+    """Пока жив первый запуск, второй не стартует и не трогает его файлы."""
+    import subprocess
+    б = база(tmp_path)
+    # Хозяин замка — другой живой процесс, а не сам тест: свой PID обёртка
+    # за чужой запуск не считает.
+    хозяин = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    замок = mod._замок_базы(str(б))
+    замок.parent.mkdir(parents=True, exist_ok=True)
+    замок.write_text("%d %f" % (хозяин.pid, __import__("time").time() + 600),
+                     encoding="utf-8")
+    try:
+        пустышка = заглушка(tmp_path, "сразу выходит")
+        код, отчёт = mod.запустить(
+            [str(пустышка), "DESIGNER", "/F", str(б), "/N", "Admin", "/DumpCfg",
+             "a.cf", "/DisableStartupDialogs", "/Out", "log.txt"],
+            ответы={"база-одноразовая"}, таймаут=30)
+    finally:
+        хозяин.kill(); хозяин.wait()
+        замок.unlink()
+    assert код == 2, отчёт
+    assert str(хозяин.pid) in отчёт, отчёт
+
+
+def test_stale_lock_of_a_dead_run_does_not_block(tmp_path):
+    """Замок умершего запуска — не повод отказывать."""
+    import subprocess
+    б = база(tmp_path)
+    мёртвый = subprocess.Popen([sys.executable, "-c", "pass"])
+    мёртвый.wait()
+    замок = mod._замок_базы(str(б))
+    замок.parent.mkdir(parents=True, exist_ok=True)
+    замок.write_text("%d %f" % (мёртвый.pid, __import__("time").time() + 600),
+                     encoding="utf-8")
+    пустышка = заглушка(tmp_path, "сразу выходит")
+    код, отчёт = mod.запустить(
+        [str(пустышка), "DESIGNER", "/F", str(б), "/N", "Admin", "/DumpCfg",
+         "a.cf", "/DisableStartupDialogs", "/Out", "log.txt"],
+        ответы={"база-одноразовая"}, таймаут=30)
+    assert код == 0, отчёт
+
+
+def test_lock_is_released_after_the_run(tmp_path):
+    """После запуска замка нет: следующий запуск не должен ждать."""
+    б = база(tmp_path)
+    пустышка = заглушка(tmp_path, "сразу выходит")
+    mod.запустить([str(пустышка), "DESIGNER", "/F", str(б), "/N", "Admin",
+                   "/DumpCfg", "a.cf", "/DisableStartupDialogs", "/Out", "log.txt"],
+                  ответы={"база-одноразовая"}, таймаут=30)
+    assert not mod._замок_базы(str(б)).exists()
